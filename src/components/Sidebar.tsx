@@ -1,7 +1,9 @@
 import { NavLink } from "react-router-dom";
 import { useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
-import { LayoutDashboard, Scale, Users, Shield, Activity } from "lucide-react";
+import { LayoutDashboard, Scale, Users } from "lucide-react";
+
+// Shield, Activity
 
 const Sidebar = () => {
   const { user } = useContext(AuthContext);
