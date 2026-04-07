@@ -10,7 +10,6 @@ import {
   Key,
   Trash2,
   Search,
-  Filter,
   RefreshCw,
   AlertCircle,
   CheckCircle,
@@ -18,11 +17,24 @@ import {
   Building2,
   UserCog,
   UserCheck,
-  UserX,
 } from "lucide-react";
 
-// Modal Component
-const Modal = ({ isOpen, onClose, title, children }: any) => {
+type ToastType = "success" | "error" | "info";
+
+type ToastProps = {
+  message: string;
+  type: ToastType;
+  onClose: () => void;
+};
+
+type ModalProps = {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+};
+
+const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
   if (!isOpen) return null;
 
   return (
@@ -54,19 +66,19 @@ const Modal = ({ isOpen, onClose, title, children }: any) => {
 };
 
 // Toast Notification Component
-const Toast = ({ message, type, onClose }: any) => {
+const Toast = ({ message, type, onClose }: ToastProps) => {
   useEffect(() => {
     const timer = setTimeout(onClose, 5000);
     return () => clearTimeout(timer);
   }, [onClose]);
 
-  const icons = {
+  const icons: Record<ToastType, React.ReactNode> = {
     success: <CheckCircle className="w-5 h-5 text-green-500" />,
     error: <AlertCircle className="w-5 h-5 text-red-500" />,
     info: <AlertCircle className="w-5 h-5 text-blue-500" />,
   };
 
-  const styles = {
+  const styles: Record<ToastType, string> = {
     success: "bg-green-50 border-green-200 text-green-800",
     error: "bg-red-50 border-red-200 text-red-800",
     info: "bg-blue-50 border-blue-200 text-blue-800",
@@ -95,9 +107,10 @@ const UsersPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: string } | null>(
-    null,
-  );
+  const [toast, setToast] = useState<{
+    message: string;
+    type: ToastType;
+  } | null>(null);
 
   const NIGERIA_STATES = [
     "Abia",
@@ -169,14 +182,14 @@ const UsersPage = () => {
   /* =========================
      TOAST NOTIFICATION
   ========================= */
-  const showToast = (message: string, type: string = "success") => {
+  const showToast = (message: string, type: ToastType = "success") => {
     setToast({ message, type });
   };
 
   /* =========================
      CREATE USER
   ========================= */
-  const handleSubmit = async (e: any) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     try {
@@ -284,7 +297,7 @@ const UsersPage = () => {
     )
   ) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex items-center justify-center min-h-100">
         <div className="text-center">
           <div className="inline-block p-4 bg-red-50 rounded-full mb-4">
             <Shield className="w-12 h-12 text-red-400" />
@@ -302,7 +315,7 @@ const UsersPage = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex items-center justify-center min-h-100">
         <div className="text-center">
           <div className="inline-block p-4 bg-gray-100 rounded-full mb-4">
             <RefreshCw className="w-8 h-8 text-gray-400 animate-spin" />
@@ -476,8 +489,8 @@ const UsersPage = () => {
                 >
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="flex-shrink-0">
-                        <div className="w-10 h-10 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex items-center justify-center">
+                      <div className="shrink-0">
+                        <div className="w-10 h-10 bg-linear-to-br from-gray-100 to-gray-200 rounded-lg flex items-center justify-center">
                           <span className="text-sm font-medium text-gray-600">
                             {u.fullName?.charAt(0) || u.email?.charAt(0)}
                           </span>

@@ -13,17 +13,12 @@ import {
   Eye,
   Plus,
   CheckCircle,
-  AlertCircle,
   X,
   FileText,
   Building2,
   MapPin,
-  Calendar,
-  DollarSign,
   Clock,
-  ChevronRight,
   Search,
-  Filter,
   Download,
   RefreshCw,
 } from "lucide-react";
@@ -274,7 +269,7 @@ const CasesPage = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex items-center justify-center min-h-100">
         <div className="text-center">
           <div className="inline-block p-4 bg-gray-100 rounded-full mb-4">
             <RefreshCw className="w-8 h-8 text-gray-400 animate-spin" />
@@ -439,9 +434,6 @@ const CasesPage = () => {
                       )}
                       {c.status === "resolved" && (
                         <CheckCircle className="w-3 h-3 mr-1" />
-                      )}
-                      {c.status === "in-review" && (
-                        <AlertCircle className="w-3 h-3 mr-1" />
                       )}
                       {c.status.charAt(0).toUpperCase() + c.status.slice(1)}
                     </span>

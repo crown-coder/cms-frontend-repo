@@ -27,6 +27,7 @@ export interface DashboardSummary {
 
 export interface Case {
   id: number;
+  complianceItems?: any[];
   companyName: string;
   rcNumber: string;
   address: string;

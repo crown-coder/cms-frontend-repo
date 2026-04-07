@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import Layout from "../../components/Layout";
 import { getDashboardSummary } from "../../services/dashboardService";
 import type { DashboardSummary } from "../../types";
 import {
@@ -7,7 +6,6 @@ import {
   Clock,
   CheckCircle,
   TrendingUp,
-  TrendingDown,
   AlertTriangle,
   MapPin,
   Calendar,
@@ -25,6 +23,8 @@ const Overview = () => {
     try {
       const summary = await getDashboardSummary();
       setData(summary);
+    } catch (error) {
+      console.error("Failed to fetch dashboard data:", error);
     } finally {
       setIsRefreshing(false);
     }
@@ -32,13 +32,13 @@ const Overview = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleRefresh = () => {
     fetchData();
   };
 
-  const formatCurrency = (value: number) => {
+  const formatCurrency = (value: number): string => {
     return new Intl.NumberFormat("en-NG", {
       style: "currency",
       currency: "NGN",
@@ -47,7 +47,7 @@ const Overview = () => {
     }).format(value);
   };
 
-  const getComplianceRate = () => {
+  const getComplianceRate = (): number => {
     if (!data) return 0;
     const total = data.totalCases;
     if (total === 0) return 0;
@@ -75,10 +75,16 @@ const Overview = () => {
   }
 
   const complianceRate = getComplianceRate();
+  const totalPenalty = Number(data.totalPenalty) || 0;
+  const outstandingBalance = Number(data.outstandingBalance) || 0;
+
   const outstandingPercentage =
-    data.totalPenalty > 0
-      ? Math.round((data.outstandingBalance / data.totalPenalty) * 100)
+    totalPenalty > 0
+      ? Math.round((outstandingBalance / totalPenalty) * 100)
       : 0;
+
+  // Safely handle casesByState with fallback
+  const casesByState = data.casesByState || [];
 
   return (
     <div>
@@ -121,8 +127,9 @@ const Overview = () => {
             <button
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title="Refresh data"
+              aria-label="Refresh data"
             >
               <RefreshCw
                 className={`w-5 h-5 ${isRefreshing ? "animate-spin" : ""}`}
@@ -130,7 +137,14 @@ const Overview = () => {
             </button>
 
             {/* Export Button */}
-            <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+            <button
+              onClick={() => {
+                // Add export functionality here
+                console.log("Export report");
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              aria-label="Export report"
+            >
               <Download className="w-4 h-4" />
               Export Report
             </button>
@@ -141,7 +155,7 @@ const Overview = () => {
       {/* Key Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {/* Total Cases Card */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-4">
             <div className="p-2 bg-blue-50 rounded-lg">
               <Scale className="w-5 h-5 text-blue-600" />
@@ -150,7 +164,7 @@ const Overview = () => {
           </div>
           <p className="text-sm text-gray-500 mb-1">Total Cases</p>
           <p className="text-3xl font-semibold text-gray-800">
-            {data.totalCases.toLocaleString()}
+            {data.totalCases?.toLocaleString() || 0}
           </p>
           <div className="flex items-center gap-1 mt-2 text-xs text-green-600">
             <TrendingUp className="w-3 h-3" />
@@ -159,7 +173,7 @@ const Overview = () => {
         </div>
 
         {/* Pending Cases Card */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-4">
             <div className="p-2 bg-amber-50 rounded-lg">
               <Clock className="w-5 h-5 text-amber-600" />
@@ -168,7 +182,7 @@ const Overview = () => {
           </div>
           <p className="text-sm text-gray-500 mb-1">Pending Cases</p>
           <p className="text-3xl font-semibold text-gray-800">
-            {data.pendingCases.toLocaleString()}
+            {data.pendingCases?.toLocaleString() || 0}
           </p>
           <div className="flex items-center gap-1 mt-2 text-xs text-amber-600">
             <AlertTriangle className="w-3 h-3" />
@@ -177,7 +191,7 @@ const Overview = () => {
         </div>
 
         {/* Resolved Cases Card */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-4">
             <div className="p-2 bg-green-50 rounded-lg">
               <CheckCircle className="w-5 h-5 text-green-600" />
@@ -186,13 +200,17 @@ const Overview = () => {
           </div>
           <p className="text-sm text-gray-500 mb-1">Resolved Cases</p>
           <p className="text-3xl font-semibold text-gray-800">
-            {data.resolvedCases.toLocaleString()}
+            {data.resolvedCases?.toLocaleString() || 0}
           </p>
           <div className="flex items-center gap-1 mt-2">
             <div className="w-20 h-1.5 bg-gray-100 rounded-full overflow-hidden">
               <div
-                className="h-full bg-green-600 rounded-full"
-                style={{ width: `${complianceRate}%` }}
+                className="h-full bg-green-600 rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(complianceRate, 100)}%` }}
+                role="progressbar"
+                aria-valuenow={complianceRate}
+                aria-valuemin={0}
+                aria-valuemax={100}
               ></div>
             </div>
             <span className="text-xs text-gray-500 ml-2">
@@ -202,7 +220,7 @@ const Overview = () => {
         </div>
 
         {/* Compliance Rate Card */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-4">
             <div className="p-2 bg-purple-50 rounded-lg">
               <TrendingUp className="w-5 h-5 text-purple-600" />
@@ -223,10 +241,10 @@ const Overview = () => {
       {/* Financial Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         {/* Total Penalty Card */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
           <p className="text-sm text-gray-500 mb-1">Total Penalty Amount</p>
           <p className="text-2xl font-semibold text-gray-800">
-            {formatCurrency(data.totalPenalty)}
+            {formatCurrency(Number(data.totalPenalty) || 0)}
           </p>
           <p className="text-xs text-gray-400 mt-2">
             Accumulated penalties to date
@@ -234,25 +252,29 @@ const Overview = () => {
         </div>
 
         {/* Total Paid Card */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
           <p className="text-sm text-gray-500 mb-1">Total Paid</p>
           <p className="text-2xl font-semibold text-green-600">
-            {formatCurrency(data.totalPaid)}
+            {formatCurrency(Number(data.totalPaid) || 0)}
           </p>
           <p className="text-xs text-gray-400 mt-2">Successfully collected</p>
         </div>
 
         {/* Outstanding Balance Card */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
           <p className="text-sm text-gray-500 mb-1">Outstanding Balance</p>
           <p className="text-2xl font-semibold text-amber-600">
-            {formatCurrency(data.outstandingBalance)}
+            {formatCurrency(data.outstandingBalance || 0)}
           </p>
           <div className="flex items-center gap-2 mt-2">
             <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
               <div
-                className="h-full bg-amber-600 rounded-full"
-                style={{ width: `${outstandingPercentage}%` }}
+                className="h-full bg-amber-600 rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(outstandingPercentage, 100)}%` }}
+                role="progressbar"
+                aria-valuenow={outstandingPercentage}
+                aria-valuemin={0}
+                aria-valuemax={100}
               ></div>
             </div>
             <span className="text-xs text-gray-500">
@@ -263,7 +285,7 @@ const Overview = () => {
       </div>
 
       {/* Regional Data Section */}
-      {data.casesByState && data.casesByState.length > 0 && (
+      {casesByState && casesByState.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           {/* Section Header */}
           <div className="px-6 py-4 border-b border-gray-200 bg-gray-50/50">
@@ -284,8 +306,8 @@ const Overview = () => {
           </div>
 
           {/* Table */}
-          <div className="p-6">
-            <table className="w-full">
+          <div className="p-6 overflow-x-auto">
+            <table className="w-full min-w-[500px]">
               <thead>
                 <tr className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   <th className="pb-3">State</th>
@@ -295,24 +317,33 @@ const Overview = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {data.casesByState.map((item) => {
-                  const percentage = Math.round(
-                    (item.total / data.totalCases) * 100,
+                {casesByState.map((item) => {
+                  const totalCases = data.totalCases || 1; // Avoid division by zero
+                  const percentage = Math.min(
+                    Math.round((item.total / totalCases) * 100),
+                    100,
                   );
                   return (
-                    <tr key={item.state} className="text-sm">
+                    <tr
+                      key={item.state || `state-${Math.random()}`}
+                      className="text-sm hover:bg-gray-50 transition-colors"
+                    >
                       <td className="py-3 font-medium text-gray-800">
                         {item.state}
                       </td>
                       <td className="py-3 text-gray-600">
-                        {item.total.toLocaleString()}
+                        {item.total?.toLocaleString() || 0}
                       </td>
                       <td className="py-3">
                         <div className="flex items-center gap-3">
                           <div className="w-32 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                             <div
-                              className="h-full bg-green-600 rounded-full"
+                              className="h-full bg-green-600 rounded-full transition-all duration-500"
                               style={{ width: `${percentage}%` }}
+                              role="progressbar"
+                              aria-valuenow={percentage}
+                              aria-valuemin={0}
+                              aria-valuemax={100}
                             ></div>
                           </div>
                           <span className="text-xs text-gray-500">
@@ -341,10 +372,10 @@ const Overview = () => {
             <div className="mt-4 pt-4 border-t border-gray-100">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-500">
-                  Total States: {data.casesByState.length}
+                  Total States: {casesByState.length}
                 </span>
                 <span className="text-gray-500">
-                  National Total: {data.totalCases.toLocaleString()}
+                  National Total: {data.totalCases?.toLocaleString() || 0}
                 </span>
               </div>
             </div>
@@ -354,7 +385,11 @@ const Overview = () => {
 
       {/* Quick Actions */}
       <div className="mt-8 grid grid-cols-1 md:grid-cols-4 gap-4">
-        <button className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:border-green-600/30 hover:shadow-md transition-all group">
+        <button
+          onClick={() => console.log("Generate Compliance Report")}
+          className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:border-green-600/30 hover:shadow-md transition-all group"
+          aria-label="Generate Compliance Report"
+        >
           <span className="text-sm font-medium text-gray-700 group-hover:text-green-600">
             Generate Compliance Report
           </span>
@@ -362,15 +397,23 @@ const Overview = () => {
             PDF
           </span>
         </button>
-        <button className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:border-green-600/30 hover:shadow-md transition-all group">
+        <button
+          onClick={() => console.log("View All Cases")}
+          className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:border-green-600/30 hover:shadow-md transition-all group"
+          aria-label="View All Cases"
+        >
           <span className="text-sm font-medium text-gray-700 group-hover:text-green-600">
             View All Cases
           </span>
           <span className="text-xs text-gray-400 group-hover:text-green-600">
-            {data.pendingCases} pending
+            {data.pendingCases || 0} pending
           </span>
         </button>
-        <button className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:border-green-600/30 hover:shadow-md transition-all group">
+        <button
+          onClick={() => console.log("Schedule Enforcement")}
+          className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:border-green-600/30 hover:shadow-md transition-all group"
+          aria-label="Schedule Enforcement"
+        >
           <span className="text-sm font-medium text-gray-700 group-hover:text-green-600">
             Schedule Enforcement
           </span>
@@ -378,7 +421,11 @@ const Overview = () => {
             New
           </span>
         </button>
-        <button className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:border-green-600/30 hover:shadow-md transition-all group">
+        <button
+          onClick={() => console.log("View Audit Trail")}
+          className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:border-green-600/30 hover:shadow-md transition-all group"
+          aria-label="View Audit Trail"
+        >
           <span className="text-sm font-medium text-gray-700 group-hover:text-green-600">
             View Audit Trail
           </span>

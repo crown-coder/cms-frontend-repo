@@ -1,14 +1,7 @@
 import { NavLink } from "react-router-dom";
 import { useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
-import {
-  LayoutDashboard,
-  Scale,
-  Users,
-  Shield,
-  Activity,
-  LogOut,
-} from "lucide-react";
+import { LayoutDashboard, Scale, Users, Shield, Activity } from "lucide-react";
 
 const Sidebar = () => {
   const { user } = useContext(AuthContext);
@@ -94,24 +87,24 @@ const Sidebar = () => {
             <NavLink
               key={item.path}
               to={item.path}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  isActive
-                    ? "bg-green-600 text-white shadow-md shadow-green-600/20"
-                    : "text-gray-300 hover:bg-gray-700/50 hover:text-white"
-                }`
-              }
               end={item.path === "/dashboard"}
             >
-              <Icon className="w-5 h-5" />
-              <span>{item.label}</span>
+              {({ isActive }) => (
+                <div
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    isActive
+                      ? "bg-green-600 text-white shadow-md shadow-green-600/20"
+                      : "text-gray-300 hover:bg-gray-700/50 hover:text-white"
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span>{item.label}</span>
 
-              {/* Active Indicator */}
-              {({ isActive }) =>
-                isActive && (
-                  <span className="ml-auto w-1.5 h-1.5 bg-white rounded-full"></span>
-                )
-              }
+                  {isActive && (
+                    <span className="ml-auto w-1.5 h-1.5 bg-white rounded-full"></span>
+                  )}
+                </div>
+              )}
             </NavLink>
           );
         })}
