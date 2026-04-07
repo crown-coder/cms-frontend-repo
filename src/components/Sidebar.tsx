@@ -27,18 +27,18 @@ const Sidebar = () => {
       icon: Users,
       roles: ["super_admin"],
     },
-    {
-      label: "Compliance",
-      path: "/dashboard/compliance",
-      icon: Shield,
-      roles: ["super_admin"],
-    },
-    {
-      label: "Activity Logs",
-      path: "/dashboard/logs",
-      icon: Activity,
-      roles: ["super_admin"],
-    },
+    // {
+    //   label: "Compliance",
+    //   path: "/dashboard/compliance",
+    //   icon: Shield,
+    //   roles: ["super_admin"],
+    // },
+    // {
+    //   label: "Activity Logs",
+    //   path: "/dashboard/logs",
+    //   icon: Activity,
+    //   roles: ["super_admin"],
+    // },
   ];
 
   const filteredNavItems = navItems.filter((item) =>
