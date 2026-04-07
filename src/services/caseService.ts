@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const API = "http://localhost:4000/api";
+// const API = "http://localhost:4000/api";
+const API = "https://cms-backend-repo.onrender.com/api";
 const CASES_API = `${API}/cases`;
 const COMPLIANCE_API = `${API}/compliance`;
 const SECTIONS_API = `${API}/compliance-sections`;

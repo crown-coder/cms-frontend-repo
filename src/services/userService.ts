@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const API = "http://localhost:4000/api/auth";
+// const API = "http://localhost:4000/api/auth";
+const API = "https://cms-backend-repo.onrender.com/api/auth";
 
 const getAuthHeader = () => ({
   headers: {
