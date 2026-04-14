@@ -40,3 +40,13 @@ export const deleteUser = async (id: number) => {
   const res = await axios.delete(`${API}/users/${id}`, getAuthHeader());
   return res.data;
 };
+/* =========================
+   UPDATE PASSWORD
+========================= */
+export const updatePassword = async (data: {
+  currentPassword: string;
+  newPassword: string;
+}) => {
+  const res = await axios.post(`${API}/update-password`, data, getAuthHeader());
+  return res.data;
+};
