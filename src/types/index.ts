@@ -18,11 +18,19 @@ export interface DashboardSummary {
   resolvedCases: number;
   totalPenalty: string;
   totalPaid: string;
+  totalWaived: number;
   outstandingBalance: number;
   casesByState: {
     state: string;
     total: number;
   }[];
+}
+
+export interface Payment {
+  id: number;
+  amount: number;
+  paymentDate: string;
+  createdAt: string;
 }
 
 export type ResolutionType =

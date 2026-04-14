@@ -239,7 +239,7 @@ const Overview = () => {
       </div>
 
       {/* Financial Metrics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
         {/* Total Penalty Card */}
         <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
           <p className="text-sm text-gray-500 mb-1">Total Penalty Amount</p>
@@ -258,6 +258,17 @@ const Overview = () => {
             {formatCurrency(Number(data.totalPaid) || 0)}
           </p>
           <p className="text-xs text-gray-400 mt-2">Successfully collected</p>
+        </div>
+
+        {/* Total Waived Card */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
+          <p className="text-sm text-gray-500 mb-1">Total Waived</p>
+          <p className="text-2xl font-semibold text-slate-800">
+            {formatCurrency(Number(data.totalWaived) || 0)}
+          </p>
+          <p className="text-xs text-gray-400 mt-2">
+            Total penalty reductions granted
+          </p>
         </div>
 
         {/* Outstanding Balance Card */}

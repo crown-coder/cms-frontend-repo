@@ -7,7 +7,8 @@ import {
   getComplianceSections,
   getCaseById,
 } from "../../services/caseService";
-import type { Case, ComplianceSection } from "../../types";
+import { getPayments, recordPayment } from "../../services/paymentService";
+import type { Case, ComplianceSection, Payment } from "../../types";
 import { AuthContext } from "../../context/AuthContext";
 import {
   Eye,
@@ -103,6 +104,14 @@ const CasesPage = () => {
     suspensionReason: "",
     suspendedUntil: "",
   });
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [paymentForm, setPaymentForm] = useState({
+    amount: "",
+    paymentDate: "",
+  });
+  const [isRecordingPayment, setIsRecordingPayment] = useState(false);
+  const [paymentError, setPaymentError] = useState("");
+  const [paymentSuccess, setPaymentSuccess] = useState("");
 
   useEffect(() => {
     fetchData();
@@ -152,14 +161,25 @@ const CasesPage = () => {
     }
   };
 
-  const handleViewCase = async (id: number) => {
+  const fetchCaseDetails = async (id: number) => {
     try {
-      const data = await getCaseById(id);
-      setSelectedCase(data);
+      const [caseData, paymentsData] = await Promise.all([
+        getCaseById(id),
+        getPayments(id),
+      ]);
+      setSelectedCase(caseData);
+      setPayments(paymentsData);
       setShowViewModal(true);
     } catch (error) {
       console.error("Error fetching case details:", error);
     }
+  };
+
+  const handleViewCase = async (id: number) => {
+    setPaymentSuccess("");
+    setPaymentError("");
+    setPaymentForm({ amount: "", paymentDate: "" });
+    await fetchCaseDetails(id);
   };
 
   const handleCreateCase = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -179,6 +199,42 @@ const CasesPage = () => {
       fetchData();
     } catch (error) {
       console.error("Error creating case:", error);
+    }
+  };
+
+  const handleRecordPayment = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    if (!selectedCase) return;
+
+    setPaymentError("");
+    setPaymentSuccess("");
+    setIsRecordingPayment(true);
+
+    const payload: any = {
+      amount: Number(paymentForm.amount),
+    };
+
+    if (paymentForm.paymentDate) {
+      payload.paymentDate = new Date(paymentForm.paymentDate).toISOString();
+    }
+
+    try {
+      await recordPayment(selectedCase.id, payload);
+      setPaymentSuccess("Payment recorded successfully.");
+      setPaymentForm({ amount: "", paymentDate: "" });
+      await fetchCaseDetails(selectedCase.id);
+      fetchData();
+    } catch (error: any) {
+      const backendMessage =
+        error?.response?.data?.message || error?.response?.data?.error;
+      if (backendMessage) {
+        setPaymentError(backendMessage);
+      } else {
+        setPaymentError("Unable to record payment. Please try again.");
+      }
+    } finally {
+      setIsRecordingPayment(false);
     }
   };
 
@@ -1226,6 +1282,111 @@ const CasesPage = () => {
                     </p>
                   )}
                 </div>
+              </div>
+            </div>
+
+            {/* Payment Activity */}
+            <div className="grid grid-cols-1 gap-4">
+              <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-800">
+                      Payment History
+                    </h4>
+                    <p className="text-xs text-gray-500">
+                      Recorded payments for this case
+                    </p>
+                  </div>
+                  <span className="text-xs text-gray-400">
+                    {payments.length} payments
+                  </span>
+                </div>
+
+                {payments.length > 0 ? (
+                  <div className="space-y-3">
+                    {payments.map((payment) => (
+                      <div
+                        key={payment.id}
+                        className="flex items-center justify-between gap-4 rounded-lg border border-gray-100 bg-gray-50 p-3"
+                      >
+                        <div>
+                          <p className="text-sm font-medium text-gray-800">
+                            {formatCurrency(payment.amount)}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {new Date(payment.paymentDate).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <p className="text-xs text-gray-500">
+                          Recorded{" "}
+                          {new Date(payment.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-500 py-6 text-center">
+                    No payments have been recorded for this case.
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                <h4 className="text-sm font-semibold text-gray-800 mb-3">
+                  Record Payment
+                </h4>
+                <form onSubmit={handleRecordPayment} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Amount (₦)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      step="100"
+                      value={paymentForm.amount}
+                      onChange={(e) =>
+                        setPaymentForm((prev) => ({
+                          ...prev,
+                          amount: e.target.value,
+                        }))
+                      }
+                      required
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Payment Date
+                    </label>
+                    <input
+                      type="date"
+                      value={paymentForm.paymentDate}
+                      onChange={(e) =>
+                        setPaymentForm((prev) => ({
+                          ...prev,
+                          paymentDate: e.target.value,
+                        }))
+                      }
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
+                    />
+                  </div>
+
+                  {paymentError && (
+                    <p className="text-sm text-red-600">{paymentError}</p>
+                  )}
+                  {paymentSuccess && (
+                    <p className="text-sm text-green-600">{paymentSuccess}</p>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={isRecordingPayment}
+                    className="w-full px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isRecordingPayment ? "Recording..." : "Record Payment"}
+                  </button>
+                </form>
               </div>
             </div>
 
