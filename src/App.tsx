@@ -4,6 +4,7 @@ import Layout from "./components/Layout";
 import Overview from "./pages/dashboard/Overview";
 import UsersPage from "./pages/dashboard/UsersPage";
 import CasesPage from "./pages/dashboard/CasesPage";
+import Settings from "./pages/dashboard/Settings";
 import RoleGuard from "./components/RoleGuard";
 
 const App = () => {
@@ -23,6 +24,7 @@ const App = () => {
             }
           />
           <Route path="cases" element={<CasesPage />} />
+          <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
     </Router>

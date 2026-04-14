@@ -1,7 +1,7 @@
 import { NavLink } from "react-router-dom";
 import { useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
-import { LayoutDashboard, Scale, Users } from "lucide-react";
+import { LayoutDashboard, Scale, Users, Settings } from "lucide-react";
 
 // Shield, Activity
 
@@ -28,6 +28,12 @@ const Sidebar = () => {
       path: "/dashboard/users",
       icon: Users,
       roles: ["super_admin"],
+    },
+    {
+      label: "Settings",
+      path: "/dashboard/settings",
+      icon: Settings,
+      roles: ["super_admin", "enforcement_head", "state_controller", "officer"],
     },
     // {
     //   label: "Compliance",
