@@ -211,8 +211,26 @@ const CasesPage = () => {
     setPaymentSuccess("");
     setIsRecordingPayment(true);
 
+    const paymentAmount = Number(paymentForm.amount);
+    const outstandingBalance =
+      Number(selectedCase.totalPenalty) - Number(selectedCase.totalPaid);
+
+    if (paymentAmount <= 0) {
+      setPaymentError("Payment amount must be greater than zero.");
+      setIsRecordingPayment(false);
+      return;
+    }
+
+    if (paymentAmount > outstandingBalance) {
+      setPaymentError(
+        `Payment amount (${formatCurrency(paymentAmount)}) cannot exceed the outstanding balance (${formatCurrency(outstandingBalance)}).`,
+      );
+      setIsRecordingPayment(false);
+      return;
+    }
+
     const payload: any = {
-      amount: Number(paymentForm.amount),
+      amount: paymentAmount,
     };
 
     if (paymentForm.paymentDate) {
@@ -1335,6 +1353,21 @@ const CasesPage = () => {
                 <h4 className="text-sm font-semibold text-gray-800 mb-3">
                   Record Payment
                 </h4>
+                {selectedCase && (
+                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-blue-700 font-medium">
+                        Outstanding Balance:
+                      </span>
+                      <span className="text-blue-800 font-semibold">
+                        {formatCurrency(
+                          Number(selectedCase.totalPenalty) -
+                            Number(selectedCase.totalPaid),
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                )}
                 <form onSubmit={handleRecordPayment} className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1355,6 +1388,37 @@ const CasesPage = () => {
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
                     />
                   </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="autofill-complete"
+                      onChange={(e) => {
+                        if (e.target.checked && selectedCase) {
+                          const outstanding =
+                            Number(selectedCase.totalPenalty) -
+                            Number(selectedCase.totalPaid);
+                          setPaymentForm((prev) => ({
+                            ...prev,
+                            amount: String(outstanding),
+                          }));
+                        } else {
+                          setPaymentForm((prev) => ({
+                            ...prev,
+                            amount: "",
+                          }));
+                        }
+                      }}
+                      className="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 focus:ring-2"
+                    />
+                    <label
+                      htmlFor="autofill-complete"
+                      className="text-sm text-gray-700 cursor-pointer"
+                    >
+                      Pay complete outstanding balance
+                    </label>
+                  </div>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Payment Date
