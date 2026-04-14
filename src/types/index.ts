@@ -25,6 +25,11 @@ export interface DashboardSummary {
   }[];
 }
 
+export type ResolutionType =
+  | "payment_complete"
+  | "penalty_waived"
+  | "suspended";
+
 export interface Case {
   id: number;
   complianceItems?: any[];
@@ -33,9 +38,13 @@ export interface Case {
   address: string;
   inspectionDate: string;
   state: string;
-  status: "pending" | "resolved";
+  status: "pending" | "in_progress" | "escalated" | "resolved" | "suspended";
   totalPenalty: number;
   totalPaid: number;
+  resolutionType?: ResolutionType | null;
+  penaltyReduction?: number | null;
+  suspensionReason?: string | null;
+  suspendedUntil?: string | null;
   createdAt: string;
 }
 

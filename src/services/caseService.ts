@@ -36,13 +36,21 @@ export const createCase = async (data: any) => {
   return res.data;
 };
 
+export type ResolvePayload = {
+  resolutionType: "payment_complete" | "penalty_waived" | "suspended";
+  remark?: string;
+  penaltyReduction?: number;
+  suspensionReason?: string;
+  suspendedUntil?: string;
+};
+
 /* =========================
    RESOLVE CASE
 ========================= */
-export const resolveCase = async (id: number, remark: string) => {
+export const resolveCase = async (id: number, payload: ResolvePayload) => {
   const res = await axios.patch(
     `${CASES_API}/${id}/resolve`,
-    { remark },
+    payload,
     getAuthHeader(),
   );
 

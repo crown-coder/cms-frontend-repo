@@ -90,6 +90,19 @@ const CasesPage = () => {
     null,
   );
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showResolveModal, setShowResolveModal] = useState<number | null>(null);
+  const [isResolving, setIsResolving] = useState(false);
+  const [resolveErrors, setResolveErrors] = useState<string[]>([]);
+  const [resolvePayload, setResolvePayload] = useState({
+    resolutionType: "payment_complete" as
+      | "payment_complete"
+      | "penalty_waived"
+      | "suspended",
+    remark: "",
+    penaltyReduction: "",
+    suspensionReason: "",
+    suspendedUntil: "",
+  });
 
   useEffect(() => {
     fetchData();
@@ -215,18 +228,107 @@ const CasesPage = () => {
     }
   };
 
-  const handleResolveCase = async (id: number) => {
+  const handleOpenResolveModal = (id: number) => {
+    setShowResolveModal(id);
+    setResolveErrors([]);
+    setResolvePayload({
+      resolutionType: "payment_complete",
+      remark: "",
+      penaltyReduction: "",
+      suspensionReason: "",
+      suspendedUntil: "",
+    });
+  };
+
+  const handleResolveSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    if (!showResolveModal) return;
+
+    setIsResolving(true);
+    setResolveErrors([]);
+
     if (
-      window.confirm(
-        "Are you sure you want to resolve this case? This action cannot be undone.",
-      )
+      resolvePayload.resolutionType === "penalty_waived" &&
+      (!resolvePayload.penaltyReduction ||
+        Number(resolvePayload.penaltyReduction) <= 0)
     ) {
-      try {
-        await resolveCase(id, "Resolved");
-        fetchData();
-      } catch (error) {
-        console.error("Error resolving case:", error);
+      setResolveErrors(["Penalty reduction must be greater than zero."]);
+      setIsResolving(false);
+      return;
+    }
+
+    if (
+      resolvePayload.resolutionType === "suspended" &&
+      !resolvePayload.suspensionReason.trim()
+    ) {
+      setResolveErrors(["Suspension reason is required."]);
+      setIsResolving(false);
+      return;
+    }
+
+    const payload: any = {
+      resolutionType: resolvePayload.resolutionType,
+    };
+
+    if (resolvePayload.remark.trim()) {
+      payload.remark = resolvePayload.remark.trim();
+    }
+
+    if (resolvePayload.resolutionType === "penalty_waived") {
+      payload.penaltyReduction = Number(resolvePayload.penaltyReduction);
+    }
+
+    if (resolvePayload.resolutionType === "suspended") {
+      if (resolvePayload.suspensionReason.trim()) {
+        payload.suspensionReason = resolvePayload.suspensionReason.trim();
       }
+
+      if (resolvePayload.suspendedUntil) {
+        payload.suspendedUntil = resolvePayload.suspendedUntil;
+      }
+    }
+
+    try {
+      await resolveCase(showResolveModal, payload);
+      setShowResolveModal(null);
+      fetchData();
+      if (selectedCase?.id === showResolveModal) {
+        setSelectedCase({
+          ...selectedCase,
+          status:
+            resolvePayload.resolutionType === "suspended"
+              ? "suspended"
+              : "resolved",
+          resolutionType: resolvePayload.resolutionType,
+          penaltyReduction:
+            resolvePayload.resolutionType === "penalty_waived"
+              ? Number(resolvePayload.penaltyReduction)
+              : selectedCase.penaltyReduction,
+          suspensionReason:
+            resolvePayload.resolutionType === "suspended"
+              ? resolvePayload.suspensionReason.trim() || null
+              : selectedCase.suspensionReason,
+          suspendedUntil:
+            resolvePayload.resolutionType === "suspended"
+              ? resolvePayload.suspendedUntil || null
+              : selectedCase.suspendedUntil,
+        });
+      }
+    } catch (error: any) {
+      const backendMessage =
+        error?.response?.data?.message || error?.response?.data?.error;
+      const validationErrors = error?.response?.data?.errors;
+
+      if (validationErrors && Array.isArray(validationErrors)) {
+        setResolveErrors(validationErrors);
+      } else if (backendMessage) {
+        setResolveErrors([backendMessage]);
+      } else {
+        setResolveErrors(["Failed to resolve case. Please try again."]);
+      }
+    } finally {
+      setIsResolving(false);
     }
   };
 
@@ -242,8 +344,10 @@ const CasesPage = () => {
   const getStatusBadge = (status: string) => {
     const styles = {
       pending: "bg-amber-100 text-amber-700 border-amber-200",
+      in_progress: "bg-blue-100 text-blue-700 border-blue-200",
+      escalated: "bg-purple-100 text-purple-700 border-purple-200",
       resolved: "bg-green-100 text-green-700 border-green-200",
-      "in-review": "bg-blue-100 text-blue-700 border-blue-200",
+      suspended: "bg-slate-100 text-slate-700 border-slate-200",
     };
     return styles[status as keyof typeof styles] || styles.pending;
   };
@@ -336,8 +440,10 @@ const CasesPage = () => {
           >
             <option value="all">All Statuses</option>
             <option value="pending">Pending</option>
-            <option value="in-review">In Review</option>
+            <option value="in_progress">In Progress</option>
+            <option value="escalated">Escalated</option>
             <option value="resolved">Resolved</option>
+            <option value="suspended">Suspended</option>
           </select>
 
           {/* State Filter */}
@@ -485,7 +591,7 @@ const CasesPage = () => {
                           user?.role || "",
                         ) && (
                           <button
-                            onClick={() => handleResolveCase(c.id)}
+                            onClick={() => handleOpenResolveModal(c.id)}
                             className="p-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"
                             title="Resolve Case"
                           >
@@ -856,6 +962,155 @@ const CasesPage = () => {
       </Modal>
 
       {/* =========================
+          RESOLVE CASE MODAL
+      ========================= */}
+      <Modal
+        isOpen={showResolveModal !== null}
+        onClose={() => {
+          setShowResolveModal(null);
+          setResolveErrors([]);
+        }}
+        title="Resolve Case"
+      >
+        <form onSubmit={handleResolveSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Resolution Type <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={resolvePayload.resolutionType}
+                onChange={(e) =>
+                  setResolvePayload((prev) => ({
+                    ...prev,
+                    resolutionType: e.target.value as
+                      | "payment_complete"
+                      | "penalty_waived"
+                      | "suspended",
+                  }))
+                }
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
+              >
+                <option value="payment_complete">Payment Complete</option>
+                <option value="penalty_waived">Penalty Waived</option>
+                <option value="suspended">Suspend Case</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Remark
+              </label>
+              <textarea
+                value={resolvePayload.remark}
+                onChange={(e) =>
+                  setResolvePayload((prev) => ({
+                    ...prev,
+                    remark: e.target.value,
+                  }))
+                }
+                rows={3}
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
+                placeholder="Optional note or transaction reference"
+              />
+            </div>
+
+            {resolvePayload.resolutionType === "penalty_waived" && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Penalty Reduction (₦) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={resolvePayload.penaltyReduction}
+                  onChange={(e) =>
+                    setResolvePayload((prev) => ({
+                      ...prev,
+                      penaltyReduction: e.target.value,
+                    }))
+                  }
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
+                  placeholder="Enter reduction amount"
+                />
+              </div>
+            )}
+
+            {resolvePayload.resolutionType === "suspended" && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Suspension Reason <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={resolvePayload.suspensionReason}
+                    onChange={(e) =>
+                      setResolvePayload((prev) => ({
+                        ...prev,
+                        suspensionReason: e.target.value,
+                      }))
+                    }
+                    rows={3}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
+                    placeholder="Reason for suspension"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Suspended Until
+                  </label>
+                  <input
+                    type="date"
+                    value={resolvePayload.suspendedUntil}
+                    onChange={(e) =>
+                      setResolvePayload((prev) => ({
+                        ...prev,
+                        suspendedUntil: e.target.value,
+                      }))
+                    }
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
+                  />
+                </div>
+              </>
+            )}
+
+            {resolveErrors.length > 0 && (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-3">
+                <p className="text-sm font-medium text-red-700 mb-2">
+                  Unable to resolve case
+                </p>
+                <ul className="list-disc list-inside text-sm text-red-600 space-y-1">
+                  {resolveErrors.map((error, index) => (
+                    <li key={index}>{error}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={() => {
+                setShowResolveModal(null);
+                setResolveErrors([]);
+              }}
+              className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isResolving}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isResolving ? "Resolving..." : "Confirm Resolution"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* =========================
           VIEW CASE DETAILS MODAL
       ========================= */}
       <Modal
@@ -910,6 +1165,43 @@ const CasesPage = () => {
                   {formatCurrency(selectedCase.totalPaid)}
                 </p>
               </div>
+              <div className="p-3 bg-gray-50 rounded-lg col-span-2">
+                <p className="text-xs text-gray-500 mb-1">Resolution Details</p>
+                <div className="grid grid-cols-1 gap-2 text-sm text-gray-700">
+                  <p>
+                    <span className="font-medium">Type:</span>{" "}
+                    {selectedCase.resolutionType
+                      ? selectedCase.resolutionType
+                          .split("_")
+                          .map(
+                            (part) =>
+                              part.charAt(0).toUpperCase() + part.slice(1),
+                          )
+                          .join(" ")
+                      : "N/A"}
+                  </p>
+                  {selectedCase.penaltyReduction != null && (
+                    <p>
+                      <span className="font-medium">Penalty Reduction:</span>{" "}
+                      {formatCurrency(selectedCase.penaltyReduction)}
+                    </p>
+                  )}
+                  {selectedCase.suspensionReason && (
+                    <p>
+                      <span className="font-medium">Suspension Reason:</span>{" "}
+                      {selectedCase.suspensionReason}
+                    </p>
+                  )}
+                  {selectedCase.suspendedUntil && (
+                    <p>
+                      <span className="font-medium">Suspended Until:</span>{" "}
+                      {new Date(
+                        selectedCase.suspendedUntil,
+                      ).toLocaleDateString()}
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Compliance Items */}
@@ -961,7 +1253,7 @@ const CasesPage = () => {
                         </div>
                         <div>
                           <p className="text-xs text-gray-500">Computation</p>
-                          <p className="text-sm font-mono text-xs">
+                          <p className="text-xs font-mono">
                             {item.penaltyComputation}
                           </p>
                         </div>
@@ -1029,6 +1321,20 @@ const CasesPage = () => {
                   Add Compliance
                 </button>
               )}
+              {selectedCase.status === "pending" &&
+                ["super_admin", "enforcement_head"].includes(
+                  user?.role || "",
+                ) && (
+                  <button
+                    onClick={() => {
+                      setShowViewModal(false);
+                      handleOpenResolveModal(selectedCase.id);
+                    }}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+                  >
+                    Resolve Case
+                  </button>
+                )}
             </div>
           </div>
         )}
