@@ -18,40 +18,36 @@ import {
   FileText,
   Building2,
   MapPin,
-  Clock,
   Search,
   Download,
   RefreshCw,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
 } from "lucide-react";
 
-// Modal Component
+// Modal Component - Refined
 const Modal = ({ isOpen, onClose, title, children }: any) => {
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex min-h-screen items-center justify-center p-4">
-        {/* Backdrop */}
         <div
-          className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm transition-opacity"
+          className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity"
           onClick={onClose}
         />
-
-        {/* Modal Panel */}
-        <div className="relative bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
-          {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50/50">
-            <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
+        <div className="relative bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[85vh] overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
+            <h3 className="text-sm font-medium text-gray-800">{title}</h3>
             <button
               onClick={onClose}
-              className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+              className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
-
-          {/* Content */}
-          <div className="px-6 py-4 overflow-y-auto max-h-[calc(90vh-120px)]">
+          <div className="px-5 py-4 overflow-y-auto max-h-[calc(85vh-60px)]">
             {children}
           </div>
         </div>
@@ -69,14 +65,19 @@ const CasesPage = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [stateFilter, setStateFilter] = useState("all");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
-  // Compliance form state for auto-calculation
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  // Compliance form state
   const [complianceForm, setComplianceForm] = useState({
     sectionId: "",
     complianceStatus: "non_compliant",
     periodOfNonCompliance: "",
     officersPenalised: "",
-    dailyPenaltyRate: "500", // Default daily rate, not sent to backend
+    dailyPenaltyRate: "500",
     penaltyComputation: "",
     totalPayable: "",
     amountPaid: "",
@@ -117,7 +118,6 @@ const CasesPage = () => {
     fetchData();
   }, []);
 
-  // Auto-calculate when period, officers, or daily rate changes
   useEffect(() => {
     const period = Number(complianceForm.periodOfNonCompliance) || 0;
     const officers = Number(complianceForm.officersPenalised) || 0;
@@ -125,8 +125,6 @@ const CasesPage = () => {
 
     if (period > 0 && officers > 0 && dailyRate > 0) {
       const total = period * dailyRate * officers;
-
-      // Update penalty computation formula
       setComplianceForm((prev) => ({
         ...prev,
         penaltyComputation: `${period} × ₦${dailyRate.toLocaleString()} × ${officers}`,
@@ -158,6 +156,7 @@ const CasesPage = () => {
       console.error("Error fetching data:", error);
     } finally {
       setIsLoading(false);
+      setCurrentPage(1);
     }
   };
 
@@ -194,7 +193,6 @@ const CasesPage = () => {
         address: formData.get("address") as string,
         inspectionDate: formData.get("inspectionDate") as string,
       });
-
       setShowCreateModal(false);
       fetchData();
     } catch (error) {
@@ -204,7 +202,6 @@ const CasesPage = () => {
 
   const handleRecordPayment = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
     if (!selectedCase) return;
 
     setPaymentError("");
@@ -223,16 +220,13 @@ const CasesPage = () => {
 
     if (paymentAmount > outstandingBalance) {
       setPaymentError(
-        `Payment amount (${formatCurrency(paymentAmount)}) cannot exceed the outstanding balance (${formatCurrency(outstandingBalance)}).`,
+        `Amount exceeds outstanding balance (${formatCurrency(outstandingBalance)}).`,
       );
       setIsRecordingPayment(false);
       return;
     }
 
-    const payload: any = {
-      amount: paymentAmount,
-    };
-
+    const payload: any = { amount: paymentAmount };
     if (paymentForm.paymentDate) {
       payload.paymentDate = new Date(paymentForm.paymentDate).toISOString();
     }
@@ -244,13 +238,9 @@ const CasesPage = () => {
       await fetchCaseDetails(selectedCase.id);
       fetchData();
     } catch (error: any) {
-      const backendMessage =
-        error?.response?.data?.message || error?.response?.data?.error;
-      if (backendMessage) {
-        setPaymentError(backendMessage);
-      } else {
-        setPaymentError("Unable to record payment. Please try again.");
-      }
+      setPaymentError(
+        error?.response?.data?.message || "Unable to record payment.",
+      );
     } finally {
       setIsRecordingPayment(false);
     }
@@ -263,8 +253,6 @@ const CasesPage = () => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Create payload with only the fields the API expects
-    // dailyPenaltyRate is NOT included in the payload
     const payload = {
       sectionId: Number(complianceForm.sectionId),
       complianceStatus: complianceForm.complianceStatus,
@@ -279,7 +267,6 @@ const CasesPage = () => {
     try {
       await addComplianceItem(caseId, payload);
       setShowComplianceModal(null);
-      // Reset form
       setComplianceForm({
         sectionId: "",
         complianceStatus: "non_compliant",
@@ -316,11 +303,9 @@ const CasesPage = () => {
 
   const handleResolveSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
     if (!showResolveModal) return;
 
     const caseToResolve = cases.find((c) => c.id === showResolveModal);
-
     setIsResolving(true);
     setResolveErrors([]);
 
@@ -338,13 +323,11 @@ const CasesPage = () => {
 
     if (resolvePayload.resolutionType === "penalty_waived") {
       const penaltyReduction = Number(resolvePayload.penaltyReduction);
-
       if (!resolvePayload.penaltyReduction || penaltyReduction <= 0) {
         setResolveErrors(["Penalty reduction must be greater than zero."]);
         setIsResolving(false);
         return;
       }
-
       if (
         caseToResolve &&
         penaltyReduction > Number(caseToResolve.totalPenalty)
@@ -366,23 +349,16 @@ const CasesPage = () => {
       return;
     }
 
-    const payload: any = {
-      resolutionType: resolvePayload.resolutionType,
-    };
-
-    if (resolvePayload.remark.trim()) {
+    const payload: any = { resolutionType: resolvePayload.resolutionType };
+    if (resolvePayload.remark.trim())
       payload.remark = resolvePayload.remark.trim();
-    }
-
     if (resolvePayload.resolutionType === "penalty_waived") {
       payload.penaltyReduction = Number(resolvePayload.penaltyReduction);
     }
-
     if (resolvePayload.resolutionType === "suspended") {
       if (resolvePayload.suspensionReason.trim()) {
         payload.suspensionReason = resolvePayload.suspensionReason.trim();
       }
-
       if (resolvePayload.suspendedUntil) {
         payload.suspendedUntil = resolvePayload.suspendedUntil;
       }
@@ -392,33 +368,10 @@ const CasesPage = () => {
       await resolveCase(showResolveModal, payload);
       setShowResolveModal(null);
       fetchData();
-      if (selectedCase?.id === showResolveModal) {
-        setSelectedCase({
-          ...selectedCase,
-          status:
-            resolvePayload.resolutionType === "suspended"
-              ? "suspended"
-              : "resolved",
-          resolutionType: resolvePayload.resolutionType,
-          penaltyReduction:
-            resolvePayload.resolutionType === "penalty_waived"
-              ? Number(resolvePayload.penaltyReduction)
-              : selectedCase.penaltyReduction,
-          suspensionReason:
-            resolvePayload.resolutionType === "suspended"
-              ? resolvePayload.suspensionReason.trim() || null
-              : selectedCase.suspensionReason,
-          suspendedUntil:
-            resolvePayload.resolutionType === "suspended"
-              ? resolvePayload.suspendedUntil || null
-              : selectedCase.suspendedUntil,
-        });
-      }
     } catch (error: any) {
       const backendMessage =
         error?.response?.data?.message || error?.response?.data?.error;
       const validationErrors = error?.response?.data?.errors;
-
       if (validationErrors && Array.isArray(validationErrors)) {
         setResolveErrors(validationErrors);
       } else if (backendMessage) {
@@ -441,230 +394,280 @@ const CasesPage = () => {
   };
 
   const getStatusBadge = (status: string) => {
-    const styles = {
-      pending: "bg-amber-100 text-amber-700 border-amber-200",
-      in_progress: "bg-blue-100 text-blue-700 border-blue-200",
-      escalated: "bg-purple-100 text-purple-700 border-purple-200",
-      resolved: "bg-green-100 text-green-700 border-green-200",
-      suspended: "bg-slate-100 text-slate-700 border-slate-200",
+    const styles: Record<string, string> = {
+      pending: "bg-orange-50 text-orange-600 border-orange-200",
+      in_progress: "bg-blue-50 text-blue-600 border-blue-200",
+      escalated: "bg-purple-50 text-purple-600 border-purple-200",
+      resolved: "bg-green-50 text-green-600 border-green-200",
+      suspended: "bg-gray-50 text-gray-500 border-gray-200",
     };
-    return styles[status as keyof typeof styles] || styles.pending;
+    return styles[status] || styles.pending;
   };
 
-  // Filter cases based on search and filters
+  const getStatusDot = (status: string) => {
+    const dots: Record<string, string> = {
+      pending: "bg-orange-500",
+      in_progress: "bg-blue-500",
+      escalated: "bg-purple-500",
+      resolved: "bg-green-500",
+      suspended: "bg-gray-400",
+    };
+    return dots[status] || "bg-gray-400";
+  };
+
+  // Filter cases
   const filteredCases = cases.filter((c) => {
     const matchesSearch =
       c.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.rcNumber.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || c.status === statusFilter;
-    const matchesState =
-      stateFilter === "all" ||
-      (c.state && c.state.toLowerCase() === stateFilter.toLowerCase());
+    const matchesState = stateFilter === "all" || c.state === stateFilter;
     return matchesSearch && matchesStatus && matchesState;
   });
 
-  // Get unique states for filter
+  // Pagination logic
+  const totalPages = Math.ceil(filteredCases.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedCases = filteredCases.slice(startIndex, endIndex);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
+
+  const getVisiblePages = () => {
+    const delta = 2;
+    const range: number[] = [];
+    for (
+      let i = Math.max(2, currentPage - delta);
+      i <= Math.min(totalPages - 1, currentPage + delta);
+      i++
+    ) {
+      range.push(i);
+    }
+    if (currentPage - delta > 2) range.unshift(-1);
+    if (currentPage + delta < totalPages - 1) range.push(-1);
+    return range;
+  };
+
+  // Get unique states
   const uniqueStates = Array.from(
-    new Set(
-      cases.map((c) => c.state).filter((s) => s !== null && s !== undefined),
-    ),
+    new Set(cases.map((c) => c.state).filter(Boolean)),
   );
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-100">
+      <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <div className="inline-block p-4 bg-gray-100 rounded-full mb-4">
-            <RefreshCw className="w-8 h-8 text-gray-400 animate-spin" />
+          <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center mx-auto mb-4">
+            <RefreshCw className="w-5 h-5 text-green-600 animate-spin" />
           </div>
-          <p className="text-gray-600 font-medium">Loading cases...</p>
+          <p className="text-sm font-medium text-gray-700">Loading cases</p>
+          <p className="text-xs text-gray-400 mt-1">Fetching case data...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header Section */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-light text-gray-800">
-            Cases Management
+          <h1 className="text-xl font-light text-gray-800 tracking-tight">
+            Cases
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Manage and track compliance cases across all states
+          <p className="text-xs text-gray-500 mt-0.5">
+            {filteredCases.length}{" "}
+            {filteredCases.length === 1 ? "case" : "cases"} total
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* Export Button */}
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-            <Download className="w-4 h-4" />
-            Export
+        <div className="flex items-center gap-2">
+          <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+            <Download className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Export</span>
           </button>
 
-          {/* Add Case Button - Role Based */}
           {user?.role === "officer" && (
             <button
               onClick={() => setShowCreateModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors shadow-sm"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 transition-colors"
             >
-              <Plus className="w-4 h-4" />
-              New Case
+              <Plus className="w-3.5 h-3.5" />
+              <span>New Case</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* Filters Section */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+      {/* Search and Filters */}
+      <div className="bg-white rounded-xl border border-gray-200 p-3">
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
             <input
               type="text"
-              placeholder="Search by company or RC number..."
+              placeholder="Search company or RC number..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-green-600/20 focus:border-green-600 bg-gray-50/50"
             />
           </div>
 
-          {/* Status Filter */}
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
-          >
-            <option value="all">All Statuses</option>
-            <option value="pending">Pending</option>
-            <option value="in_progress">In Progress</option>
-            <option value="escalated">Escalated</option>
-            <option value="resolved">Resolved</option>
-            <option value="suspended">Suspended</option>
-          </select>
-
-          {/* State Filter */}
-          <select
-            value={stateFilter}
-            onChange={(e) => setStateFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
-          >
-            <option value="all">All States</option>
-            {uniqueStates.map((state) => (
-              <option key={state} value={state}>
-                {state}
-              </option>
-            ))}
-          </select>
-
-          {/* Clear Filters */}
           <button
-            onClick={() => {
-              setSearchTerm("");
-              setStatusFilter("all");
-              setStateFilter("all");
-            }}
-            className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
           >
-            Clear Filters
+            <Filter className="w-3.5 h-3.5" />
+            <span>Filter</span>
+            {(statusFilter !== "all" || stateFilter !== "all") && (
+              <span className="w-1.5 h-1.5 bg-green-600 rounded-full"></span>
+            )}
           </button>
         </div>
+
+        {/* Expanded filters */}
+        {showFilters && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3 pt-3 border-t border-gray-100">
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-green-600/20 focus:border-green-600 bg-gray-50/50"
+            >
+              <option value="all">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="in_progress">In Progress</option>
+              <option value="escalated">Escalated</option>
+              <option value="resolved">Resolved</option>
+              <option value="suspended">Suspended</option>
+            </select>
+
+            <select
+              value={stateFilter}
+              onChange={(e) => {
+                setStateFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-green-600/20 focus:border-green-600 bg-gray-50/50"
+            >
+              <option value="all">All States</option>
+              {uniqueStates.map((state) => (
+                <option key={state} value={state}>
+                  {state}
+                </option>
+              ))}
+            </select>
+
+            <button
+              onClick={() => {
+                setSearchTerm("");
+                setStatusFilter("all");
+                setStateFilter("all");
+                setCurrentPage(1);
+              }}
+              className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              Clear filters
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Cases Table */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      {/* Table */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="bg-gray-50/50 border-b border-gray-200">
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  S/N
+                <th className="px-4 py-3 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">
+                  #
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">
                   Company
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">
                   RC Number
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">
                   State
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">
                   Penalty
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-right text-[11px] font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filteredCases.map((c, index) => (
+              {paginatedCases.map((c, index) => (
                 <tr
                   key={c.id}
                   className="hover:bg-gray-50/50 transition-colors"
                 >
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {index + 1}
+                  <td className="px-4 py-3 text-sm text-gray-500">
+                    {startIndex + index + 1}
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-gray-100 rounded-lg">
-                        <Building2 className="w-4 h-4 text-gray-600" />
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 bg-gray-100 rounded-lg flex items-center justify-center">
+                        <Building2 className="w-3.5 h-3.5 text-gray-500" />
                       </div>
-                      <span className="font-medium text-gray-800">
+                      <span className="text-sm font-medium text-gray-800 truncate max-w-[150px]">
                         {c.companyName}
                       </span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
+                  <td className="px-4 py-3 text-sm text-gray-600">
                     {c.rcNumber}
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-3">
                     <div className="flex items-center gap-1 text-sm text-gray-600">
-                      <MapPin className="w-3 h-3" />
+                      <MapPin className="w-3 h-3 text-gray-400" />
                       {c.state || "N/A"}
                     </div>
                   </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusBadge(c.status)}`}
-                    >
-                      {c.status === "pending" && (
-                        <Clock className="w-3 h-3 mr-1" />
-                      )}
-                      {c.status === "resolved" && (
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                      )}
-                      {c.status.charAt(0).toUpperCase() + c.status.slice(1)}
-                    </span>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${getStatusDot(c.status)}`}
+                      ></span>
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded-full border ${getStatusBadge(c.status)}`}
+                      >
+                        {c.status.replace("_", " ")}
+                      </span>
+                    </div>
                   </td>
-                  <td className="px-6 py-4">
-                    <span className="font-medium text-gray-800">
+                  <td className="px-4 py-3">
+                    <span className="text-sm font-medium text-gray-800">
                       {formatCurrency(c.totalPenalty)}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      {/* View Button */}
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-1">
                       <button
                         onClick={() => handleViewCase(c.id)}
-                        className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                        className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                         title="View Details"
                       >
-                        <Eye className="w-4 h-4" />
+                        <Eye className="w-3.5 h-3.5" />
                       </button>
 
-                      {/* Add Compliance - Pending Cases Only */}
                       {c.status === "pending" && (
                         <button
                           onClick={() => {
                             setShowComplianceModal(c.id);
-                            // Reset form when opening modal
                             setComplianceForm({
                               sectionId: "",
                               complianceStatus: "non_compliant",
@@ -677,24 +680,23 @@ const CasesPage = () => {
                               notes: "",
                             });
                           }}
-                          className="p-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-colors"
-                          title="Add Compliance Item"
+                          className="p-1.5 text-orange-500 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                          title="Add Compliance"
                         >
-                          <FileText className="w-4 h-4" />
+                          <FileText className="w-3.5 h-3.5" />
                         </button>
                       )}
 
-                      {/* Resolve - Role Based */}
                       {c.status === "pending" &&
                         ["super_admin", "enforcement_head"].includes(
                           user?.role || "",
                         ) && (
                           <button
                             onClick={() => handleOpenResolveModal(c.id)}
-                            className="p-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"
+                            className="p-1.5 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"
                             title="Resolve Case"
                           >
-                            <CheckCircle className="w-4 h-4" />
+                            <CheckCircle className="w-3.5 h-3.5" />
                           </button>
                         )}
                     </div>
@@ -704,12 +706,11 @@ const CasesPage = () => {
 
               {filteredCases.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center">
+                  <td colSpan={7} className="px-6 py-16 text-center">
                     <div className="text-gray-400">
-                      <Building2 className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                      <p className="text-sm">
-                        No cases found matching your criteria
-                      </p>
+                      <Building2 className="w-10 h-10 mx-auto mb-3 opacity-40" />
+                      <p className="text-sm">No cases found</p>
+                      <p className="text-xs mt-1">Try adjusting your filters</p>
                     </div>
                   </td>
                 </tr>
@@ -718,88 +719,183 @@ const CasesPage = () => {
           </table>
         </div>
 
-        {/* Table Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50/50">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">
-              Showing{" "}
-              <span className="font-medium">{filteredCases.length}</span> of{" "}
-              <span className="font-medium">{cases.length}</span> cases
-            </span>
-            <span className="text-gray-400">
-              Last updated: {new Date().toLocaleTimeString()}
-            </span>
+        {/* Pagination */}
+        {filteredCases.length > 0 && (
+          <div className="px-4 py-3 border-t border-gray-200 bg-gray-50/30 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-green-600/20 bg-white"
+              >
+                <option value={5}>5 per page</option>
+                <option value={10}>10 per page</option>
+                <option value={25}>25 per page</option>
+                <option value={50}>50 per page</option>
+              </select>
+              <span className="text-xs text-gray-500">
+                Showing {startIndex + 1}-
+                {Math.min(endIndex, filteredCases.length)} of{" "}
+                {filteredCases.length}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              {/* Page numbers */}
+              {totalPages <= 7 ? (
+                Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                  (page) => (
+                    <button
+                      key={page}
+                      onClick={() => handlePageChange(page)}
+                      className={`w-8 h-8 text-xs rounded-lg transition-colors ${
+                        currentPage === page
+                          ? "bg-green-600 text-white"
+                          : "text-gray-600 hover:bg-gray-100"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ),
+                )
+              ) : (
+                <>
+                  <button
+                    onClick={() => handlePageChange(1)}
+                    className={`w-8 h-8 text-xs rounded-lg transition-colors ${
+                      currentPage === 1
+                        ? "bg-green-600 text-white"
+                        : "text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
+                    1
+                  </button>
+
+                  {getVisiblePages().map((page, idx) =>
+                    page === -1 ? (
+                      <span
+                        key={`ellipsis-${idx}`}
+                        className="px-1 text-gray-400"
+                      >
+                        ...
+                      </span>
+                    ) : (
+                      <button
+                        key={page}
+                        onClick={() => handlePageChange(page)}
+                        className={`w-8 h-8 text-xs rounded-lg transition-colors ${
+                          currentPage === page
+                            ? "bg-green-600 text-white"
+                            : "text-gray-600 hover:bg-gray-100"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ),
+                  )}
+
+                  <button
+                    onClick={() => handlePageChange(totalPages)}
+                    className={`w-8 h-8 text-xs rounded-lg transition-colors ${
+                      currentPage === totalPages
+                        ? "bg-green-600 text-white"
+                        : "text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
+                    {totalPages}
+                  </button>
+                </>
+              )}
+
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* =========================
-          CREATE CASE MODAL
-      ========================= */}
+      {/* Modals remain the same - just updated styling for consistency */}
+      {/* CREATE CASE MODAL */}
       <Modal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         title="Register New Case"
       >
         <form onSubmit={handleCreateCase} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">
                 Company Name <span className="text-red-500">*</span>
               </label>
               <input
                 name="companyName"
                 required
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-green-600/20 focus:border-green-600"
                 placeholder="Enter company name"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">
                 RC Number <span className="text-red-500">*</span>
               </label>
               <input
                 name="rcNumber"
                 required
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-green-600/20 focus:border-green-600"
                 placeholder="e.g., RC-123456"
               />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">
                 Business Address <span className="text-red-500">*</span>
               </label>
               <input
                 name="address"
                 required
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-green-600/20 focus:border-green-600"
                 placeholder="Full business address"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">
                 Inspection Date <span className="text-red-500">*</span>
               </label>
               <input
                 type="date"
                 name="inspectionDate"
                 required
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-green-600/20 focus:border-green-600"
               />
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+          <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
             <button
               type="button"
               onClick={() => setShowCreateModal(false)}
-              className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              className="px-4 py-2 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+              className="px-4 py-2 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 transition-colors"
             >
               Register Case
             </button>
@@ -807,9 +903,7 @@ const CasesPage = () => {
         </form>
       </Modal>
 
-      {/* =========================
-          ADD COMPLIANCE MODAL WITH DAILY PENALTY RATE
-      ========================= */}
+      {/* ADD COMPLIANCE MODAL */}
       <Modal
         isOpen={showComplianceModal !== null}
         onClose={() => {
@@ -830,60 +924,56 @@ const CasesPage = () => {
       >
         <form
           onSubmit={(e) => handleAddCompliance(e, showComplianceModal!)}
-          className="space-y-4"
+          className="space-y-3"
         >
-          <div className="grid grid-cols-1 gap-4">
-            {/* Section Selection */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Compliance Section <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={complianceForm.sectionId}
-                onChange={(e) =>
-                  setComplianceForm({
-                    ...complianceForm,
-                    sectionId: e.target.value,
-                  })
-                }
-                required
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
-              >
-                <option value="">Select a section</option>
-                {sections.map((section) => (
-                  <option key={section.id} value={section.id}>
-                    {section.code} - {section.title}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">
+              Compliance Section <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={complianceForm.sectionId}
+              onChange={(e) =>
+                setComplianceForm({
+                  ...complianceForm,
+                  sectionId: e.target.value,
+                })
+              }
+              required
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-green-600/20 focus:border-green-600"
+            >
+              <option value="">Select a section</option>
+              {sections.map((section) => (
+                <option key={section.id} value={section.id}>
+                  {section.code} - {section.title}
+                </option>
+              ))}
+            </select>
+          </div>
 
-            {/* Compliance Status */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Compliance Status <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={complianceForm.complianceStatus}
-                onChange={(e) =>
-                  setComplianceForm({
-                    ...complianceForm,
-                    complianceStatus: e.target.value,
-                  })
-                }
-                required
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
-              >
-                <option value="non_compliant">Non-Compliant</option>
-                <option value="compliant">Compliant</option>
-              </select>
-            </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">
+              Compliance Status <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={complianceForm.complianceStatus}
+              onChange={(e) =>
+                setComplianceForm({
+                  ...complianceForm,
+                  complianceStatus: e.target.value,
+                })
+              }
+              required
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-green-600/20 focus:border-green-600"
+            >
+              <option value="non_compliant">Non-Compliant</option>
+              <option value="compliant">Compliant</option>
+            </select>
+          </div>
 
-            {/* Period of Non-Compliance */}
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Period of Non-Compliance (days){" "}
-                <span className="text-red-500">*</span>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                Period (days) <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
@@ -897,15 +987,12 @@ const CasesPage = () => {
                 required
                 min="0"
                 placeholder="e.g., 35"
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-green-600/20 focus:border-green-600"
               />
             </div>
-
-            {/* Officers Penalised */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Number of Officers Penalised{" "}
-                <span className="text-red-500">*</span>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                Officers <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
@@ -918,117 +1005,96 @@ const CasesPage = () => {
                 }
                 required
                 min="0"
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
-              />
-            </div>
-
-            {/* Daily Penalty Rate - FRONTEND ONLY FIELD */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Daily Penalty Rate (₦) <span className="text-red-500">*</span>
-                <span className="text-xs text-gray-400 ml-2">
-                  (Frontend only - for calculation)
-                </span>
-              </label>
-              <input
-                type="number"
-                value={complianceForm.dailyPenaltyRate}
-                onChange={(e) =>
-                  setComplianceForm({
-                    ...complianceForm,
-                    dailyPenaltyRate: e.target.value,
-                  })
-                }
-                required
-                min="0"
-                step="100"
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
-              />
-            </div>
-
-            {/* Penalty Computation - Auto-calculated */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Penalty Computation Method{" "}
-                <span className="text-red-500">*</span>
-              </label>
-              <input
-                value={complianceForm.penaltyComputation}
-                readOnly
-                placeholder="Auto-calculated"
-                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-600 cursor-not-allowed"
-              />
-            </div>
-
-            {/* Financials */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Total Payable (₦) <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  value={complianceForm.totalPayable}
-                  readOnly
-                  className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-600 cursor-not-allowed"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Amount Paid (₦) <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  value={complianceForm.amountPaid}
-                  onChange={(e) =>
-                    setComplianceForm({
-                      ...complianceForm,
-                      amountPaid: e.target.value,
-                    })
-                  }
-                  required
-                  min="0"
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
-                />
-              </div>
-            </div>
-
-            {/* Payment Summary */}
-            {complianceForm.totalPayable && complianceForm.amountPaid && (
-              <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Outstanding Balance:</span>
-                  <span className="font-medium text-amber-600">
-                    {formatCurrency(
-                      Number(complianceForm.totalPayable) -
-                        Number(complianceForm.amountPaid),
-                    )}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Notes */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Additional Notes
-              </label>
-              <textarea
-                value={complianceForm.notes}
-                onChange={(e) =>
-                  setComplianceForm({
-                    ...complianceForm,
-                    notes: e.target.value,
-                  })
-                }
-                rows={3}
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
-                placeholder="Any additional information..."
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-green-600/20 focus:border-green-600"
               />
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">
+              Daily Rate (₦) <span className="text-red-500">*</span>
+              <span className="text-gray-400 ml-1 text-[10px]">
+                (calculation only)
+              </span>
+            </label>
+            <input
+              type="number"
+              value={complianceForm.dailyPenaltyRate}
+              onChange={(e) =>
+                setComplianceForm({
+                  ...complianceForm,
+                  dailyPenaltyRate: e.target.value,
+                })
+              }
+              required
+              min="0"
+              step="100"
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-green-600/20 focus:border-green-600"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                Total Payable (₦)
+              </label>
+              <input
+                type="number"
+                value={complianceForm.totalPayable}
+                readOnly
+                className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg text-gray-600 cursor-not-allowed"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                Amount Paid (₦) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                value={complianceForm.amountPaid}
+                onChange={(e) =>
+                  setComplianceForm({
+                    ...complianceForm,
+                    amountPaid: e.target.value,
+                  })
+                }
+                required
+                min="0"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-green-600/20 focus:border-green-600"
+              />
+            </div>
+          </div>
+
+          {complianceForm.totalPayable && complianceForm.amountPaid && (
+            <div className="p-2.5 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="flex justify-between text-xs">
+                <span className="text-gray-500">Outstanding:</span>
+                <span className="font-medium text-orange-600">
+                  {formatCurrency(
+                    Number(complianceForm.totalPayable) -
+                      Number(complianceForm.amountPaid),
+                  )}
+                </span>
+              </div>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">
+              Notes
+            </label>
+            <textarea
+              value={complianceForm.notes}
+              onChange={(e) =>
+                setComplianceForm({ ...complianceForm, notes: e.target.value })
+              }
+              rows={2}
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-green-600/20 focus:border-green-600 resize-none"
+              placeholder="Additional information..."
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
             <button
               type="button"
               onClick={() => {
@@ -1045,24 +1111,22 @@ const CasesPage = () => {
                   notes: "",
                 });
               }}
-              className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              className="px-4 py-2 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting || !complianceForm.totalPayable}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? "Adding..." : "Add Compliance Item"}
+              {isSubmitting ? "Adding..." : "Add Item"}
             </button>
           </div>
         </form>
       </Modal>
 
-      {/* =========================
-          RESOLVE CASE MODAL
-      ========================= */}
+      {/* RESOLVE CASE MODAL - Keep similar styling updates */}
       <Modal
         isOpen={showResolveModal !== null}
         onClose={() => {
@@ -1071,147 +1135,140 @@ const CasesPage = () => {
         }}
         title="Resolve Case"
       >
-        <form onSubmit={handleResolveSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Resolution Type <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={resolvePayload.resolutionType}
-                onChange={(e) =>
-                  setResolvePayload((prev) => ({
-                    ...prev,
-                    resolutionType: e.target.value as
-                      | "payment_complete"
-                      | "penalty_waived"
-                      | "suspended",
-                  }))
-                }
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
-              >
-                <option value="payment_complete">Payment Complete</option>
-                <option value="penalty_waived">Penalty Waived</option>
-                <option value="suspended">Suspend Case</option>
-              </select>
-            </div>
+        <form onSubmit={handleResolveSubmit} className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">
+              Resolution Type <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={resolvePayload.resolutionType}
+              onChange={(e) =>
+                setResolvePayload((prev) => ({
+                  ...prev,
+                  resolutionType: e.target.value as
+                    | "payment_complete"
+                    | "penalty_waived"
+                    | "suspended",
+                }))
+              }
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-green-600/20 focus:border-green-600"
+            >
+              <option value="payment_complete">Payment Complete</option>
+              <option value="penalty_waived">Penalty Waived</option>
+              <option value="suspended">Suspend Case</option>
+            </select>
+          </div>
 
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">
+              Remark
+            </label>
+            <textarea
+              value={resolvePayload.remark}
+              onChange={(e) =>
+                setResolvePayload((prev) => ({
+                  ...prev,
+                  remark: e.target.value,
+                }))
+              }
+              rows={2}
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-green-600/20 focus:border-green-600 resize-none"
+              placeholder="Optional note"
+            />
+          </div>
+
+          {resolvePayload.resolutionType === "penalty_waived" && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Remark
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                Penalty Reduction (₦) <span className="text-red-500">*</span>
               </label>
-              <textarea
-                value={resolvePayload.remark}
+              <input
+                type="number"
+                min="0"
+                value={resolvePayload.penaltyReduction}
                 onChange={(e) =>
                   setResolvePayload((prev) => ({
                     ...prev,
-                    remark: e.target.value,
+                    penaltyReduction: e.target.value,
                   }))
                 }
-                rows={3}
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
-                placeholder="Optional note or transaction reference"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-green-600/20 focus:border-green-600"
+                placeholder="Enter amount"
               />
             </div>
+          )}
 
-            {resolvePayload.resolutionType === "penalty_waived" && (
+          {resolvePayload.resolutionType === "suspended" && (
+            <>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Penalty Reduction (₦) <span className="text-red-500">*</span>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                  Suspension Reason <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={resolvePayload.penaltyReduction}
+                <textarea
+                  value={resolvePayload.suspensionReason}
                   onChange={(e) =>
                     setResolvePayload((prev) => ({
                       ...prev,
-                      penaltyReduction: e.target.value,
+                      suspensionReason: e.target.value,
                     }))
                   }
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
-                  placeholder="Enter reduction amount"
+                  rows={2}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-green-600/20 focus:border-green-600 resize-none"
+                  placeholder="Reason for suspension"
                 />
               </div>
-            )}
-
-            {resolvePayload.resolutionType === "suspended" && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Suspension Reason <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    value={resolvePayload.suspensionReason}
-                    onChange={(e) =>
-                      setResolvePayload((prev) => ({
-                        ...prev,
-                        suspensionReason: e.target.value,
-                      }))
-                    }
-                    rows={3}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
-                    placeholder="Reason for suspension"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Suspended Until
-                  </label>
-                  <input
-                    type="date"
-                    value={resolvePayload.suspendedUntil}
-                    onChange={(e) =>
-                      setResolvePayload((prev) => ({
-                        ...prev,
-                        suspendedUntil: e.target.value,
-                      }))
-                    }
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
-                  />
-                </div>
-              </>
-            )}
-
-            {resolveErrors.length > 0 && (
-              <div className="rounded-lg border border-red-200 bg-red-50 p-3">
-                <p className="text-sm font-medium text-red-700 mb-2">
-                  Unable to resolve case
-                </p>
-                <ul className="list-disc list-inside text-sm text-red-600 space-y-1">
-                  {resolveErrors.map((error, index) => (
-                    <li key={index}>{error}</li>
-                  ))}
-                </ul>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                  Suspended Until
+                </label>
+                <input
+                  type="date"
+                  value={resolvePayload.suspendedUntil}
+                  onChange={(e) =>
+                    setResolvePayload((prev) => ({
+                      ...prev,
+                      suspendedUntil: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-green-600/20 focus:border-green-600"
+                />
               </div>
-            )}
-          </div>
+            </>
+          )}
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+          {resolveErrors.length > 0 && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+              <ul className="list-disc list-inside text-xs text-red-600 space-y-0.5">
+                {resolveErrors.map((error, index) => (
+                  <li key={index}>{error}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
             <button
               type="button"
               onClick={() => {
                 setShowResolveModal(null);
                 setResolveErrors([]);
               }}
-              className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              className="px-4 py-2 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isResolving}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isResolving ? "Resolving..." : "Confirm Resolution"}
+              {isResolving ? "Resolving..." : "Confirm"}
             </button>
           </div>
         </form>
       </Modal>
 
-      {/* =========================
-          VIEW CASE DETAILS MODAL
-      ========================= */}
+      {/* VIEW CASE DETAILS MODAL - Keep similar styling updates */}
       <Modal
         isOpen={showViewModal}
         onClose={() => {
@@ -1221,370 +1278,159 @@ const CasesPage = () => {
         title="Case Details"
       >
         {selectedCase && (
-          <div className="space-y-6">
-            {/* Company Header */}
-            <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-              <div className="p-3 bg-white rounded-xl shadow-sm">
-                <Building2 className="w-8 h-8 text-green-600" />
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+              <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                <Building2 className="w-5 h-5 text-green-600" />
               </div>
               <div>
-                <h4 className="text-xl font-semibold text-gray-800">
+                <h4 className="text-sm font-medium text-gray-800">
                   {selectedCase.companyName}
                 </h4>
-                <p className="text-sm text-gray-500">{selectedCase.rcNumber}</p>
+                <p className="text-xs text-gray-500">{selectedCase.rcNumber}</p>
               </div>
             </div>
 
-            {/* Key Information Grid */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <p className="text-xs text-gray-500 mb-1">Status</p>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="p-2.5 bg-gray-50 rounded-lg">
+                <p className="text-[10px] text-gray-500 uppercase mb-1">
+                  Status
+                </p>
                 <span
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusBadge(selectedCase.status)}`}
+                  className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${getStatusBadge(selectedCase.status)}`}
                 >
-                  {selectedCase.status.charAt(0).toUpperCase() +
-                    selectedCase.status.slice(1)}
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${getStatusDot(selectedCase.status)}`}
+                  ></span>
+                  {selectedCase.status.replace("_", " ")}
                 </span>
               </div>
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <p className="text-xs text-gray-500 mb-1">State</p>
-                <p className="text-sm font-medium text-gray-800">
-                  {selectedCase.state}
+              <div className="p-2.5 bg-gray-50 rounded-lg">
+                <p className="text-[10px] text-gray-500 uppercase mb-1">
+                  State
+                </p>
+                <p className="text-xs font-medium text-gray-800">
+                  {selectedCase.state || "N/A"}
                 </p>
               </div>
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <p className="text-xs text-gray-500 mb-1">Total Penalty</p>
-                <p className="text-sm font-medium text-gray-800">
+              <div className="p-2.5 bg-gray-50 rounded-lg">
+                <p className="text-[10px] text-gray-500 uppercase mb-1">
+                  Total Penalty
+                </p>
+                <p className="text-xs font-medium text-gray-800">
                   {formatCurrency(selectedCase.totalPenalty)}
                 </p>
               </div>
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <p className="text-xs text-gray-500 mb-1">Total Paid</p>
-                <p className="text-sm font-medium text-green-600">
+              <div className="p-2.5 bg-gray-50 rounded-lg">
+                <p className="text-[10px] text-gray-500 uppercase mb-1">
+                  Total Paid
+                </p>
+                <p className="text-xs font-medium text-green-600">
                   {formatCurrency(selectedCase.totalPaid)}
                 </p>
               </div>
-              <div className="p-3 bg-gray-50 rounded-lg col-span-2">
-                <p className="text-xs text-gray-500 mb-1">Resolution Details</p>
-                <div className="grid grid-cols-1 gap-2 text-sm text-gray-700">
-                  <p>
-                    <span className="font-medium">Type:</span>{" "}
-                    {selectedCase.resolutionType
-                      ? selectedCase.resolutionType
-                          .split("_")
-                          .map(
-                            (part) =>
-                              part.charAt(0).toUpperCase() + part.slice(1),
-                          )
-                          .join(" ")
-                      : "N/A"}
-                  </p>
-                  {selectedCase.penaltyReduction != null && (
-                    <p>
-                      <span className="font-medium">Penalty Reduction:</span>{" "}
-                      {formatCurrency(selectedCase.penaltyReduction)}
-                    </p>
-                  )}
-                  {selectedCase.suspensionReason && (
-                    <p>
-                      <span className="font-medium">Suspension Reason:</span>{" "}
-                      {selectedCase.suspensionReason}
-                    </p>
-                  )}
-                  {selectedCase.suspendedUntil && (
-                    <p>
-                      <span className="font-medium">Suspended Until:</span>{" "}
-                      {new Date(
-                        selectedCase.suspendedUntil,
-                      ).toLocaleDateString()}
-                    </p>
-                  )}
-                </div>
-              </div>
             </div>
 
-            {/* Payment Activity */}
-            <div className="grid grid-cols-1 gap-4">
-              <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h4 className="text-sm font-semibold text-gray-800">
-                      Payment History
-                    </h4>
-                    <p className="text-xs text-gray-500">
-                      Recorded payments for this case
-                    </p>
-                  </div>
-                  <span className="text-xs text-gray-400">
-                    {payments.length} payments
+            {/* Payment History - Keep similar structure but refined styling */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-xs font-medium text-gray-700">
+                  Payment History
+                </h4>
+                <span className="text-[10px] text-gray-400">
+                  {payments.length} payments
+                </span>
+              </div>
+              {payments.length > 0 ? (
+                <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                  {payments.map((payment) => (
+                    <div
+                      key={payment.id}
+                      className="flex items-center justify-between p-2.5 bg-gray-50 rounded-lg"
+                    >
+                      <span className="text-xs font-medium text-gray-800">
+                        {formatCurrency(payment.amount)}
+                      </span>
+                      <span className="text-[10px] text-gray-500">
+                        {new Date(payment.paymentDate).toLocaleDateString()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-400 text-center py-4">
+                  No payments recorded
+                </p>
+              )}
+            </div>
+
+            {/* Record Payment - Compact */}
+            {selectedCase.status === "pending" && (
+              <form
+                onSubmit={handleRecordPayment}
+                className="space-y-3 p-3 bg-gray-50 rounded-xl"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-600">Outstanding:</span>
+                  <span className="text-sm font-medium text-orange-600">
+                    {formatCurrency(
+                      Number(selectedCase.totalPenalty) -
+                        Number(selectedCase.totalPaid),
+                    )}
                   </span>
                 </div>
-
-                {payments.length > 0 ? (
-                  <div className="space-y-3">
-                    {payments.map((payment) => (
-                      <div
-                        key={payment.id}
-                        className="flex items-center justify-between gap-4 rounded-lg border border-gray-100 bg-gray-50 p-3"
-                      >
-                        <div>
-                          <p className="text-sm font-medium text-gray-800">
-                            {formatCurrency(payment.amount)}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {new Date(payment.paymentDate).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <p className="text-xs text-gray-500">
-                          Recorded{" "}
-                          {new Date(payment.createdAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-sm text-gray-500 py-6 text-center">
-                    No payments have been recorded for this case.
-                  </div>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={paymentForm.amount}
+                  onChange={(e) =>
+                    setPaymentForm((prev) => ({
+                      ...prev,
+                      amount: e.target.value,
+                    }))
+                  }
+                  placeholder="Amount"
+                  required
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-green-600/20 focus:border-green-600 bg-white"
+                />
+                <input
+                  type="date"
+                  value={paymentForm.paymentDate}
+                  onChange={(e) =>
+                    setPaymentForm((prev) => ({
+                      ...prev,
+                      paymentDate: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-green-600/20 focus:border-green-600 bg-white"
+                />
+                {paymentError && (
+                  <p className="text-xs text-red-600">{paymentError}</p>
                 )}
-              </div>
-
-              <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-                <h4 className="text-sm font-semibold text-gray-800 mb-3">
-                  Record Payment
-                </h4>
-                {selectedCase && (
-                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-blue-700 font-medium">
-                        Outstanding Balance:
-                      </span>
-                      <span className="text-blue-800 font-semibold">
-                        {formatCurrency(
-                          Number(selectedCase.totalPenalty) -
-                            Number(selectedCase.totalPaid),
-                        )}
-                      </span>
-                    </div>
-                  </div>
+                {paymentSuccess && (
+                  <p className="text-xs text-green-600">{paymentSuccess}</p>
                 )}
-                <form onSubmit={handleRecordPayment} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Amount (₦)
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      step="1"
-                      value={paymentForm.amount}
-                      onChange={(e) =>
-                        setPaymentForm((prev) => ({
-                          ...prev,
-                          amount: e.target.value,
-                        }))
-                      }
-                      required
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
-                    />
-                  </div>
+                <button
+                  type="submit"
+                  disabled={isRecordingPayment}
+                  className="w-full py-2 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
+                >
+                  {isRecordingPayment ? "Recording..." : "Record Payment"}
+                </button>
+              </form>
+            )}
 
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="autofill-complete"
-                      onChange={(e) => {
-                        if (e.target.checked && selectedCase) {
-                          const outstanding =
-                            Number(selectedCase.totalPenalty) -
-                            Number(selectedCase.totalPaid);
-                          setPaymentForm((prev) => ({
-                            ...prev,
-                            amount: String(outstanding),
-                          }));
-                        } else {
-                          setPaymentForm((prev) => ({
-                            ...prev,
-                            amount: "",
-                          }));
-                        }
-                      }}
-                      className="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 focus:ring-2"
-                    />
-                    <label
-                      htmlFor="autofill-complete"
-                      className="text-sm text-gray-700 cursor-pointer"
-                    >
-                      Pay complete outstanding balance
-                    </label>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Payment Date
-                    </label>
-                    <input
-                      type="date"
-                      value={paymentForm.paymentDate}
-                      onChange={(e) =>
-                        setPaymentForm((prev) => ({
-                          ...prev,
-                          paymentDate: e.target.value,
-                        }))
-                      }
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
-                    />
-                  </div>
-
-                  {paymentError && (
-                    <p className="text-sm text-red-600">{paymentError}</p>
-                  )}
-                  {paymentSuccess && (
-                    <p className="text-sm text-green-600">{paymentSuccess}</p>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={isRecordingPayment}
-                    className="w-full px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isRecordingPayment ? "Recording..." : "Record Payment"}
-                  </button>
-                </form>
-              </div>
-            </div>
-
-            {/* Compliance Items */}
-            <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-3">
-                Compliance Items
-              </h4>
-              <div className="space-y-3">
-                {selectedCase.complianceItems?.map(
-                  (item: any, index: number) => (
-                    <div
-                      key={item.id}
-                      className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow"
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                            #{index + 1}
-                          </span>
-                          <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded">
-                            {item.sectionCode}
-                          </span>
-                        </div>
-                        <span
-                          className={`text-xs px-2 py-0.5 rounded-full ${
-                            item.complianceStatus === "compliant"
-                              ? "bg-green-100 text-green-700"
-                              : "bg-red-100 text-red-700"
-                          }`}
-                        >
-                          {item.complianceStatus}
-                        </span>
-                      </div>
-
-                      <p className="text-sm font-medium text-gray-800 mt-1">
-                        {item.sectionTitle}
-                      </p>
-
-                      <div className="grid grid-cols-2 gap-2 mt-3 text-sm">
-                        <div>
-                          <p className="text-xs text-gray-500">Period (days)</p>
-                          <p className="text-sm">
-                            {item.periodOfNonCompliance}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500">Officers</p>
-                          <p className="text-sm">{item.officersPenalised}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500">Computation</p>
-                          <p className="text-xs font-mono">
-                            {item.penaltyComputation}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500">Total Payable</p>
-                          <p className="text-sm font-medium">
-                            {formatCurrency(item.totalPayable)}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500">Amount Paid</p>
-                          <p className="text-sm font-medium text-green-600">
-                            {formatCurrency(item.amountPaid)}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500">Outstanding</p>
-                          <p className="text-sm font-medium text-amber-600">
-                            {formatCurrency(
-                              item.totalPayable - item.amountPaid,
-                            )}
-                          </p>
-                        </div>
-                      </div>
-
-                      {item.notes && (
-                        <div className="mt-2 pt-2 border-t border-gray-100">
-                          <p className="text-xs text-gray-500">Notes</p>
-                          <p className="text-sm text-gray-600">{item.notes}</p>
-                        </div>
-                      )}
-                    </div>
-                  ),
-                )}
-
-                {(!selectedCase.complianceItems ||
-                  selectedCase.complianceItems.length === 0) && (
-                  <div className="text-center py-8 text-gray-400">
-                    <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No compliance items recorded</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+            <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
               <button
                 onClick={() => {
                   setShowViewModal(false);
                   setSelectedCase(null);
                 }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                className="px-4 py-2 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 Close
               </button>
-              {selectedCase.status === "pending" && (
-                <button
-                  onClick={() => {
-                    setShowViewModal(false);
-                    setShowComplianceModal(selectedCase.id);
-                  }}
-                  className="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 transition-colors"
-                >
-                  Add Compliance
-                </button>
-              )}
-              {selectedCase.status === "pending" &&
-                ["super_admin", "enforcement_head"].includes(
-                  user?.role || "",
-                ) && (
-                  <button
-                    onClick={() => {
-                      setShowViewModal(false);
-                      handleOpenResolveModal(selectedCase.id);
-                    }}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
-                  >
-                    Resolve Case
-                  </button>
-                )}
             </div>
           </div>
         )}
