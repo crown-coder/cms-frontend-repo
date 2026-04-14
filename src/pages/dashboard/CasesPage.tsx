@@ -24,6 +24,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Filter,
+  ChevronDown,
 } from "lucide-react";
 
 // Modal Component - Refined
@@ -113,6 +114,9 @@ const CasesPage = () => {
   const [isRecordingPayment, setIsRecordingPayment] = useState(false);
   const [paymentError, setPaymentError] = useState("");
   const [paymentSuccess, setPaymentSuccess] = useState("");
+  const [expandedComplianceItem, setExpandedComplianceItem] = useState<
+    number | null
+  >(null);
 
   useEffect(() => {
     fetchData();
@@ -178,6 +182,7 @@ const CasesPage = () => {
     setPaymentSuccess("");
     setPaymentError("");
     setPaymentForm({ amount: "", paymentDate: "" });
+    setExpandedComplianceItem(null);
     await fetchCaseDetails(id);
   };
 
@@ -413,6 +418,12 @@ const CasesPage = () => {
       suspended: "bg-gray-400",
     };
     return dots[status] || "bg-gray-400";
+  };
+
+  const getComplianceStatusBadge = (status: string) => {
+    return status === "compliant"
+      ? "bg-green-50 text-green-600 border-green-200"
+      : "bg-red-50 text-red-600 border-red-200";
   };
 
   // Filter cases
@@ -752,7 +763,6 @@ const CasesPage = () => {
                 <ChevronLeft className="w-4 h-4" />
               </button>
 
-              {/* Page numbers */}
               {totalPages <= 7 ? (
                 Array.from({ length: totalPages }, (_, i) => i + 1).map(
                   (page) => (
@@ -830,7 +840,6 @@ const CasesPage = () => {
         )}
       </div>
 
-      {/* Modals remain the same - just updated styling for consistency */}
       {/* CREATE CASE MODAL */}
       <Modal
         isOpen={showCreateModal}
@@ -1126,7 +1135,7 @@ const CasesPage = () => {
         </form>
       </Modal>
 
-      {/* RESOLVE CASE MODAL - Keep similar styling updates */}
+      {/* RESOLVE CASE MODAL */}
       <Modal
         isOpen={showResolveModal !== null}
         onClose={() => {
@@ -1268,17 +1277,19 @@ const CasesPage = () => {
         </form>
       </Modal>
 
-      {/* VIEW CASE DETAILS MODAL - Keep similar styling updates */}
+      {/* VIEW CASE DETAILS MODAL */}
       <Modal
         isOpen={showViewModal}
         onClose={() => {
           setShowViewModal(false);
           setSelectedCase(null);
+          setExpandedComplianceItem(null);
         }}
         title="Case Details"
       >
         {selectedCase && (
           <div className="space-y-4">
+            {/* Company Header */}
             <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
               <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-sm">
                 <Building2 className="w-5 h-5 text-green-600" />
@@ -1291,6 +1302,7 @@ const CasesPage = () => {
               </div>
             </div>
 
+            {/* Key Info Grid */}
             <div className="grid grid-cols-2 gap-2">
               <div className="p-2.5 bg-gray-50 rounded-lg">
                 <p className="text-[10px] text-gray-500 uppercase mb-1">
@@ -1331,7 +1343,183 @@ const CasesPage = () => {
               </div>
             </div>
 
-            {/* Payment History - Keep similar structure but refined styling */}
+            {/* Resolution Details (if resolved) */}
+            {selectedCase.status !== "pending" && (
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <p className="text-[10px] text-gray-500 uppercase mb-2">
+                  Resolution Details
+                </p>
+                <div className="space-y-1 text-xs">
+                  <p>
+                    <span className="text-gray-500">Type:</span>{" "}
+                    <span className="text-gray-700">
+                      {selectedCase.resolutionType
+                        ?.split("_")
+                        .map(
+                          (word) =>
+                            word.charAt(0).toUpperCase() + word.slice(1),
+                        )
+                        .join(" ") || "N/A"}
+                    </span>
+                  </p>
+                  {selectedCase.penaltyReduction != null && (
+                    <p>
+                      <span className="text-gray-500">Penalty Reduction:</span>{" "}
+                      <span className="text-gray-700">
+                        {formatCurrency(selectedCase.penaltyReduction)}
+                      </span>
+                    </p>
+                  )}
+                  {selectedCase.suspensionReason && (
+                    <p>
+                      <span className="text-gray-500">Suspension Reason:</span>{" "}
+                      <span className="text-gray-700">
+                        {selectedCase.suspensionReason}
+                      </span>
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Compliance Items Section */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-xs font-medium text-gray-700">
+                  Compliance Items
+                </h4>
+                <span className="text-[10px] text-gray-400">
+                  {selectedCase.complianceItems?.length || 0} items
+                </span>
+              </div>
+
+              {selectedCase.complianceItems &&
+              selectedCase.complianceItems.length > 0 ? (
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {selectedCase.complianceItems.map(
+                    (item: any, index: number) => (
+                      <div
+                        key={item.id}
+                        className="border border-gray-200 rounded-lg overflow-hidden"
+                      >
+                        <button
+                          onClick={() =>
+                            setExpandedComplianceItem(
+                              expandedComplianceItem === item.id
+                                ? null
+                                : item.id,
+                            )
+                          }
+                          className="w-full p-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-medium text-gray-400">
+                              #{index + 1}
+                            </span>
+                            <span className="text-xs font-medium text-gray-700">
+                              {item.sectionCode}
+                            </span>
+                            <span
+                              className={`text-[10px] px-1.5 py-0.5 rounded-full border ${getComplianceStatusBadge(item.complianceStatus)}`}
+                            >
+                              {item.complianceStatus}
+                            </span>
+                          </div>
+                          <ChevronDown
+                            className={`w-3.5 h-3.5 text-gray-400 transition-transform ${
+                              expandedComplianceItem === item.id
+                                ? "rotate-180"
+                                : ""
+                            }`}
+                          />
+                        </button>
+
+                        {expandedComplianceItem === item.id && (
+                          <div className="px-3 pb-3 border-t border-gray-100">
+                            <p className="text-xs font-medium text-gray-800 mt-2">
+                              {item.sectionTitle}
+                            </p>
+
+                            <div className="grid grid-cols-2 gap-2 mt-3">
+                              <div>
+                                <p className="text-[10px] text-gray-400">
+                                  Period (days)
+                                </p>
+                                <p className="text-xs text-gray-700">
+                                  {item.periodOfNonCompliance}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-[10px] text-gray-400">
+                                  Officers
+                                </p>
+                                <p className="text-xs text-gray-700">
+                                  {item.officersPenalised}
+                                </p>
+                              </div>
+                              <div className="col-span-2">
+                                <p className="text-[10px] text-gray-400">
+                                  Computation
+                                </p>
+                                <p className="text-xs font-mono text-gray-600">
+                                  {item.penaltyComputation}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-[10px] text-gray-400">
+                                  Total Payable
+                                </p>
+                                <p className="text-xs font-medium text-gray-800">
+                                  {formatCurrency(item.totalPayable)}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-[10px] text-gray-400">
+                                  Amount Paid
+                                </p>
+                                <p className="text-xs font-medium text-green-600">
+                                  {formatCurrency(item.amountPaid)}
+                                </p>
+                              </div>
+                              <div className="col-span-2">
+                                <p className="text-[10px] text-gray-400">
+                                  Outstanding
+                                </p>
+                                <p className="text-xs font-medium text-orange-600">
+                                  {formatCurrency(
+                                    item.totalPayable - item.amountPaid,
+                                  )}
+                                </p>
+                              </div>
+                            </div>
+
+                            {item.notes && (
+                              <div className="mt-2 pt-2 border-t border-gray-100">
+                                <p className="text-[10px] text-gray-400">
+                                  Notes
+                                </p>
+                                <p className="text-xs text-gray-600">
+                                  {item.notes}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ),
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-6 bg-gray-50 rounded-lg">
+                  <FileText className="w-6 h-6 text-gray-300 mx-auto mb-1.5" />
+                  <p className="text-xs text-gray-400">
+                    No compliance items recorded
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Payment History */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <h4 className="text-xs font-medium text-gray-700">
@@ -1342,7 +1530,7 @@ const CasesPage = () => {
                 </span>
               </div>
               {payments.length > 0 ? (
-                <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                <div className="space-y-1.5 max-h-32 overflow-y-auto">
                   {payments.map((payment) => (
                     <div
                       key={payment.id}
@@ -1358,13 +1546,13 @@ const CasesPage = () => {
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-gray-400 text-center py-4">
+                <p className="text-xs text-gray-400 text-center py-4 bg-gray-50 rounded-lg">
                   No payments recorded
                 </p>
               )}
             </div>
 
-            {/* Record Payment - Compact */}
+            {/* Record Payment */}
             {selectedCase.status === "pending" && (
               <form
                 onSubmit={handleRecordPayment}
@@ -1421,16 +1609,44 @@ const CasesPage = () => {
               </form>
             )}
 
+            {/* Actions */}
             <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
               <button
                 onClick={() => {
                   setShowViewModal(false);
                   setSelectedCase(null);
+                  setExpandedComplianceItem(null);
                 }}
                 className="px-4 py-2 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 Close
               </button>
+              {selectedCase.status === "pending" && (
+                <>
+                  <button
+                    onClick={() => {
+                      setShowViewModal(false);
+                      setShowComplianceModal(selectedCase.id);
+                    }}
+                    className="px-4 py-2 bg-orange-500 text-white rounded-lg text-xs font-medium hover:bg-orange-600 transition-colors"
+                  >
+                    Add Compliance
+                  </button>
+                  {["super_admin", "enforcement_head"].includes(
+                    user?.role || "",
+                  ) && (
+                    <button
+                      onClick={() => {
+                        setShowViewModal(false);
+                        handleOpenResolveModal(selectedCase.id);
+                      }}
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 transition-colors"
+                    >
+                      Resolve Case
+                    </button>
+                  )}
+                </>
+              )}
             </div>
           </div>
         )}
