@@ -1376,6 +1376,7 @@ const CasesPage = () => {
                     <input
                       type="number"
                       min="1"
+                      step="1"
                       value={paymentForm.amount}
                       onChange={(e) =>
                         setPaymentForm((prev) => ({
