@@ -1,5 +1,5 @@
-import { api } from "./api";
-import { ComplianceSection } from "../types";
+import api from "./api";
+import type { ComplianceSection } from "../types";
 
 export const getSections = async (): Promise<ComplianceSection[]> => {
   const response = await api.get("/compliance-sections");
