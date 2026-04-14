@@ -6,11 +6,14 @@ import {
   Clock,
   CheckCircle,
   TrendingUp,
-  AlertTriangle,
   MapPin,
   Calendar,
   Download,
   RefreshCw,
+  FileText,
+  CalendarDays,
+  Shield,
+  ChevronRight,
 } from "lucide-react";
 
 const Overview = () => {
@@ -32,7 +35,7 @@ const Overview = () => {
 
   useEffect(() => {
     fetchData();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleRefresh = () => {
     fetchData();
@@ -56,19 +59,17 @@ const Overview = () => {
 
   if (!data) {
     return (
-      <div>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <div className="inline-block p-4 bg-gray-100 rounded-full mb-4">
-              <RefreshCw className="w-8 h-8 text-gray-400 animate-spin" />
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="relative mb-6">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center mx-auto">
+              <RefreshCw className="w-6 h-6 text-green-600 animate-spin" />
             </div>
-            <p className="text-gray-600 font-medium">
-              Loading dashboard data...
-            </p>
-            <p className="text-sm text-gray-400 mt-2">
-              Please wait while we fetch the latest compliance information
-            </p>
           </div>
+          <p className="text-sm font-medium text-gray-700">Loading dashboard</p>
+          <p className="text-xs text-gray-400 mt-1.5">
+            Fetching compliance data...
+          </p>
         </div>
       </div>
     );
@@ -83,367 +84,339 @@ const Overview = () => {
       ? Math.round((outstandingBalance / totalPenalty) * 100)
       : 0;
 
-  // Safely handle casesByState with fallback
   const casesByState = data.casesByState || [];
 
+  // Card configuration with colors
+  const metricCards = [
+    {
+      label: "Total Cases",
+      value: data.totalCases?.toLocaleString() || "0",
+      icon: Scale,
+      color: "green" as const,
+      trend: { value: "+12%", label: "from last month", positive: true },
+      subtitle: "All time",
+    },
+    {
+      label: "Pending Cases",
+      value: data.pendingCases?.toLocaleString() || "0",
+      icon: Clock,
+      color: "orange" as const,
+      alert: true,
+      alertLabel: "Requires attention",
+      subtitle: "Active",
+    },
+    {
+      label: "Resolved Cases",
+      value: data.resolvedCases?.toLocaleString() || "0",
+      icon: CheckCircle,
+      color: "green" as const,
+      progress: complianceRate,
+      progressLabel: "resolved",
+      subtitle: "Resolved",
+    },
+    {
+      label: "Compliance Rate",
+      value: `${complianceRate}%`,
+      icon: TrendingUp,
+      color: "green" as const,
+      trend: { value: "Above target", positive: true },
+      subtitle: "Performance",
+    },
+  ];
+
+  const getColorClasses = (color: "green" | "orange") => {
+    const colors = {
+      green: {
+        iconBg: "bg-green-50",
+        icon: "text-green-600",
+        value: "text-gray-800",
+        trend: "text-green-600",
+        alert: "text-orange-600",
+        progressBg: "bg-green-600",
+      },
+      orange: {
+        iconBg: "bg-orange-50",
+        icon: "text-orange-600",
+        value: "text-gray-800",
+        trend: "text-green-600",
+        alert: "text-orange-600",
+        progressBg: "bg-orange-500",
+      },
+    };
+    return colors[color];
+  };
+
   return (
-    <div>
-      {/* Page Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-light text-gray-800">
-              Dashboard Overview
-            </h1>
-            <div className="flex items-center gap-2 mt-1">
-              <Calendar className="w-4 h-4 text-gray-400" />
-              <p className="text-sm text-gray-500">
-                {new Date().toLocaleDateString("en-NG", {
-                  weekday: "long",
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
+    <div className="space-y-8">
+      {/* Header - Clean and minimal */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-light text-gray-800 tracking-tight">
+            Overview
+          </h1>
+          <div className="flex items-center gap-2 mt-1">
+            <Calendar className="w-3.5 h-3.5 text-gray-400" />
+            <p className="text-xs text-gray-500">
+              {new Date().toLocaleDateString("en-NG", {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+              })}
+            </p>
+          </div>
+        </div>
+
+        {/* Controls - Refined */}
+        <div className="flex items-center gap-2">
+          <select
+            value={selectedPeriod}
+            onChange={(e) => setSelectedPeriod(e.target.value)}
+            className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-green-600/20 focus:border-green-600 bg-white text-gray-600"
+          >
+            <option value="today">Today</option>
+            <option value="this-week">This Week</option>
+            <option value="this-month">This Month</option>
+            <option value="this-quarter">This Quarter</option>
+            <option value="this-year">This Year</option>
+          </select>
+
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-50"
+            title="Refresh"
+          >
+            <RefreshCw
+              className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
+            />
+          </button>
+
+          <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+            <Download className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Export</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Key Metrics Grid - Sleek cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {metricCards.map((card, index) => {
+          const colors = getColorClasses(card.color);
+          const Icon = card.icon;
+
+          return (
+            <div
+              key={index}
+              className="group bg-white rounded-xl border border-gray-200 p-5 hover:border-gray-300 hover:shadow-sm transition-all duration-200"
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div className={`p-2 ${colors.iconBg} rounded-lg`}>
+                  <Icon className={`w-4 h-4 ${colors.icon}`} />
+                </div>
+                <span className="text-[10px] text-gray-400 uppercase tracking-wider">
+                  {card.subtitle}
+                </span>
+              </div>
+
+              <p className="text-xs text-gray-500 mb-1">{card.label}</p>
+              <p
+                className={`text-2xl font-semibold ${colors.value} tracking-tight`}
+              >
+                {card.value}
               </p>
+
+              {/* Footer - Trend or Progress */}
+              <div className="mt-3">
+                {card.trend && (
+                  <div className="flex items-center gap-1">
+                    <TrendingUp className="w-3 h-3 text-green-600" />
+                    <span className="text-[11px] text-green-600 font-medium">
+                      {card.trend.value}
+                    </span>
+                    <span className="text-[11px] text-gray-400">
+                      {card.trend.label}
+                    </span>
+                  </div>
+                )}
+
+                {card.alert && (
+                  <div className="flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 bg-orange-500 rounded-full"></span>
+                    <span className="text-[11px] text-orange-600 font-medium">
+                      {card.alertLabel}
+                    </span>
+                  </div>
+                )}
+
+                {card.progress !== undefined && (
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full ${colors.progressBg} rounded-full transition-all duration-500`}
+                        style={{ width: `${Math.min(card.progress, 100)}%` }}
+                      />
+                    </div>
+                    <span className="text-[11px] text-gray-500">
+                      {card.progress}% {card.progressLabel}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-
-          {/* Controls */}
-          <div className="flex items-center gap-3">
-            {/* Period Selector */}
-            <select
-              value={selectedPeriod}
-              onChange={(e) => setSelectedPeriod(e.target.value)}
-              className="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600 bg-white"
-            >
-              <option value="today">Today</option>
-              <option value="this-week">This Week</option>
-              <option value="this-month">This Month</option>
-              <option value="this-quarter">This Quarter</option>
-              <option value="this-year">This Year</option>
-            </select>
-
-            {/* Refresh Button */}
-            <button
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Refresh data"
-              aria-label="Refresh data"
-            >
-              <RefreshCw
-                className={`w-5 h-5 ${isRefreshing ? "animate-spin" : ""}`}
-              />
-            </button>
-
-            {/* Export Button */}
-            <button
-              onClick={() => {
-                // Add export functionality here
-                console.log("Export report");
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-              aria-label="Export report"
-            >
-              <Download className="w-4 h-4" />
-              Export Report
-            </button>
-          </div>
-        </div>
+          );
+        })}
       </div>
 
-      {/* Key Metrics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {/* Total Cases Card */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-2 bg-blue-50 rounded-lg">
-              <Scale className="w-5 h-5 text-blue-600" />
-            </div>
-            <span className="text-xs text-gray-400">All time</span>
-          </div>
-          <p className="text-sm text-gray-500 mb-1">Total Cases</p>
-          <p className="text-3xl font-semibold text-gray-800">
-            {data.totalCases?.toLocaleString() || 0}
+      {/* Financial Summary - Compact cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <p className="text-[11px] text-gray-400 uppercase tracking-wider mb-2">
+            Total Penalty
           </p>
-          <div className="flex items-center gap-1 mt-2 text-xs text-green-600">
-            <TrendingUp className="w-3 h-3" />
-            <span>+12% from last month</span>
-          </div>
-        </div>
-
-        {/* Pending Cases Card */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-2 bg-amber-50 rounded-lg">
-              <Clock className="w-5 h-5 text-amber-600" />
-            </div>
-            <span className="text-xs text-gray-400">Active</span>
-          </div>
-          <p className="text-sm text-gray-500 mb-1">Pending Cases</p>
-          <p className="text-3xl font-semibold text-gray-800">
-            {data.pendingCases?.toLocaleString() || 0}
-          </p>
-          <div className="flex items-center gap-1 mt-2 text-xs text-amber-600">
-            <AlertTriangle className="w-3 h-3" />
-            <span>Requires attention</span>
-          </div>
-        </div>
-
-        {/* Resolved Cases Card */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-2 bg-green-50 rounded-lg">
-              <CheckCircle className="w-5 h-5 text-green-600" />
-            </div>
-            <span className="text-xs text-gray-400">Resolved</span>
-          </div>
-          <p className="text-sm text-gray-500 mb-1">Resolved Cases</p>
-          <p className="text-3xl font-semibold text-gray-800">
-            {data.resolvedCases?.toLocaleString() || 0}
-          </p>
-          <div className="flex items-center gap-1 mt-2">
-            <div className="w-20 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-green-600 rounded-full transition-all duration-500"
-                style={{ width: `${Math.min(complianceRate, 100)}%` }}
-                role="progressbar"
-                aria-valuenow={complianceRate}
-                aria-valuemin={0}
-                aria-valuemax={100}
-              ></div>
-            </div>
-            <span className="text-xs text-gray-500 ml-2">
-              {complianceRate}% resolved
-            </span>
-          </div>
-        </div>
-
-        {/* Compliance Rate Card */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-2 bg-purple-50 rounded-lg">
-              <TrendingUp className="w-5 h-5 text-purple-600" />
-            </div>
-            <span className="text-xs text-gray-400">Performance</span>
-          </div>
-          <p className="text-sm text-gray-500 mb-1">Compliance Rate</p>
-          <p className="text-3xl font-semibold text-gray-800">
-            {complianceRate}%
-          </p>
-          <div className="flex items-center gap-1 mt-2 text-xs text-green-600">
-            <TrendingUp className="w-3 h-3" />
-            <span>Above target</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Financial Metrics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
-        {/* Total Penalty Card */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
-          <p className="text-sm text-gray-500 mb-1">Total Penalty Amount</p>
-          <p className="text-2xl font-semibold text-gray-800">
+          <p className="text-xl font-semibold text-gray-800 tracking-tight">
             {formatCurrency(Number(data.totalPenalty) || 0)}
           </p>
-          <p className="text-xs text-gray-400 mt-2">
-            Accumulated penalties to date
-          </p>
         </div>
 
-        {/* Total Paid Card */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
-          <p className="text-sm text-gray-500 mb-1">Total Paid</p>
-          <p className="text-2xl font-semibold text-green-600">
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <p className="text-[11px] text-gray-400 uppercase tracking-wider mb-2">
+            Total Paid
+          </p>
+          <p className="text-xl font-semibold text-green-600 tracking-tight">
             {formatCurrency(Number(data.totalPaid) || 0)}
           </p>
-          <p className="text-xs text-gray-400 mt-2">Successfully collected</p>
         </div>
 
-        {/* Total Waived Card */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
-          <p className="text-sm text-gray-500 mb-1">Total Waived</p>
-          <p className="text-2xl font-semibold text-slate-800">
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <p className="text-[11px] text-gray-400 uppercase tracking-wider mb-2">
+            Total Waived
+          </p>
+          <p className="text-xl font-semibold text-gray-700 tracking-tight">
             {formatCurrency(Number(data.totalWaived) || 0)}
           </p>
-          <p className="text-xs text-gray-400 mt-2">
-            Total penalty reductions granted
-          </p>
         </div>
 
-        {/* Outstanding Balance Card */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
-          <p className="text-sm text-gray-500 mb-1">Outstanding Balance</p>
-          <p className="text-2xl font-semibold text-amber-600">
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <p className="text-[11px] text-gray-400 uppercase tracking-wider mb-2">
+            Outstanding
+          </p>
+          <p className="text-xl font-semibold text-orange-600 tracking-tight">
             {formatCurrency(data.outstandingBalance || 0)}
           </p>
           <div className="flex items-center gap-2 mt-2">
-            <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+            <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
               <div
-                className="h-full bg-amber-600 rounded-full transition-all duration-500"
+                className="h-full bg-orange-500 rounded-full"
                 style={{ width: `${Math.min(outstandingPercentage, 100)}%` }}
-                role="progressbar"
-                aria-valuenow={outstandingPercentage}
-                aria-valuemin={0}
-                aria-valuemax={100}
-              ></div>
+              />
             </div>
-            <span className="text-xs text-gray-500">
-              {outstandingPercentage}% outstanding
+            <span className="text-[10px] text-gray-400">
+              {outstandingPercentage}%
             </span>
           </div>
         </div>
       </div>
 
-      {/* Regional Data Section */}
-      {casesByState && casesByState.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          {/* Section Header */}
-          <div className="px-6 py-4 border-b border-gray-200 bg-gray-50/50">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-50 rounded-lg">
-                  <MapPin className="w-5 h-5 text-green-600" />
-                </div>
-                <div>
-                  <h3 className="font-medium text-gray-800">Cases by State</h3>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    Regional distribution of compliance cases
-                  </p>
-                </div>
+      {/* Cases by State - Clean table */}
+      {casesByState.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-green-50 rounded-lg">
+                <MapPin className="w-3.5 h-3.5 text-green-600" />
               </div>
-              <span className="text-xs text-gray-400">Last 30 days</span>
+              <h3 className="text-sm font-medium text-gray-700">
+                Cases by State
+              </h3>
+              <span className="text-[10px] text-gray-400 ml-auto">
+                Last 30 days
+              </span>
             </div>
           </div>
 
-          {/* Table */}
-          <div className="p-6 overflow-x-auto">
-            <table className="w-full min-w-[500px]">
-              <thead>
-                <tr className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <th className="pb-3">State</th>
-                  <th className="pb-3">Cases</th>
-                  <th className="pb-3">Distribution</th>
-                  <th className="pb-3 text-right">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {casesByState.map((item) => {
-                  const totalCases = data.totalCases || 1; // Avoid division by zero
-                  const percentage = Math.min(
-                    Math.round((item.total / totalCases) * 100),
-                    100,
-                  );
-                  return (
-                    <tr
-                      key={item.state || `state-${Math.random()}`}
-                      className="text-sm hover:bg-gray-50 transition-colors"
-                    >
-                      <td className="py-3 font-medium text-gray-800">
-                        {item.state}
-                      </td>
-                      <td className="py-3 text-gray-600">
-                        {item.total?.toLocaleString() || 0}
-                      </td>
-                      <td className="py-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-32 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-green-600 rounded-full transition-all duration-500"
-                              style={{ width: `${percentage}%` }}
-                              role="progressbar"
-                              aria-valuenow={percentage}
-                              aria-valuemin={0}
-                              aria-valuemax={100}
-                            ></div>
-                          </div>
-                          <span className="text-xs text-gray-500">
-                            {percentage}%
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-3 text-right">
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                            percentage > 20
-                              ? "bg-amber-100 text-amber-700"
-                              : "bg-green-100 text-green-700"
+          <div className="p-5">
+            <div className="space-y-1">
+              {casesByState.slice(0, 5).map((item) => {
+                const percentage = Math.min(
+                  Math.round((item.total / (data.totalCases || 1)) * 100),
+                  100,
+                );
+                return (
+                  <div
+                    key={item.state}
+                    className="flex items-center gap-4 py-2.5 group hover:bg-gray-50/50 px-2 -mx-2 rounded-lg transition-colors"
+                  >
+                    <span className="text-xs font-medium text-gray-700 w-24 truncate">
+                      {item.state}
+                    </span>
+                    <span className="text-xs text-gray-500 w-12 text-right">
+                      {item.total?.toLocaleString()}
+                    </span>
+                    <div className="flex-1 flex items-center gap-3">
+                      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            percentage > 20 ? "bg-orange-500" : "bg-green-600"
                           }`}
-                        >
-                          {percentage > 20 ? "High volume" : "Normal"}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                      <span className="text-[10px] text-gray-400 w-8 text-right">
+                        {percentage}%
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
 
-            {/* Summary Footer */}
-            <div className="mt-4 pt-4 border-t border-gray-100">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-500">
-                  Total States: {casesByState.length}
-                </span>
-                <span className="text-gray-500">
-                  National Total: {data.totalCases?.toLocaleString() || 0}
-                </span>
-              </div>
+            {casesByState.length > 5 && (
+              <button className="mt-4 text-xs text-green-600 font-medium flex items-center gap-1 hover:text-green-700 transition-colors">
+                View all {casesByState.length} states
+                <ChevronRight className="w-3 h-3" />
+              </button>
+            )}
+
+            <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between">
+              <span className="text-[11px] text-gray-400">
+                {casesByState.length} states
+              </span>
+              <span className="text-[11px] text-gray-500">
+                Total: {data.totalCases?.toLocaleString() || 0} cases
+              </span>
             </div>
           </div>
         </div>
       )}
 
-      {/* Quick Actions */}
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-4 gap-4">
-        <button
-          onClick={() => console.log("Generate Compliance Report")}
-          className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:border-green-600/30 hover:shadow-md transition-all group"
-          aria-label="Generate Compliance Report"
-        >
-          <span className="text-sm font-medium text-gray-700 group-hover:text-green-600">
-            Generate Compliance Report
-          </span>
-          <span className="text-xs text-gray-400 group-hover:text-green-600">
-            PDF
-          </span>
-        </button>
-        <button
-          onClick={() => console.log("View All Cases")}
-          className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:border-green-600/30 hover:shadow-md transition-all group"
-          aria-label="View All Cases"
-        >
-          <span className="text-sm font-medium text-gray-700 group-hover:text-green-600">
-            View All Cases
-          </span>
-          <span className="text-xs text-gray-400 group-hover:text-green-600">
-            {data.pendingCases || 0} pending
-          </span>
-        </button>
-        <button
-          onClick={() => console.log("Schedule Enforcement")}
-          className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:border-green-600/30 hover:shadow-md transition-all group"
-          aria-label="Schedule Enforcement"
-        >
-          <span className="text-sm font-medium text-gray-700 group-hover:text-green-600">
-            Schedule Enforcement
-          </span>
-          <span className="text-xs text-gray-400 group-hover:text-green-600">
-            New
-          </span>
-        </button>
-        <button
-          onClick={() => console.log("View Audit Trail")}
-          className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:border-green-600/30 hover:shadow-md transition-all group"
-          aria-label="View Audit Trail"
-        >
-          <span className="text-sm font-medium text-gray-700 group-hover:text-green-600">
-            View Audit Trail
-          </span>
-          <span className="text-xs text-gray-400 group-hover:text-green-600">
-            Security
-          </span>
-        </button>
+      {/* Quick Actions - Minimal buttons */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { icon: FileText, label: "Generate Report", badge: "PDF" },
+          { icon: Scale, label: "View Cases", badge: data.pendingCases || "0" },
+          { icon: CalendarDays, label: "Schedule", badge: "New" },
+          { icon: Shield, label: "Audit Trail", badge: "Logs" },
+        ].map((action, index) => {
+          const Icon = action.icon;
+          return (
+            <button
+              key={index}
+              className="group flex items-center justify-between p-3.5 bg-white border border-gray-200 rounded-xl hover:border-green-300 hover:shadow-sm transition-all"
+            >
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-gray-50 rounded-lg group-hover:bg-green-50 transition-colors">
+                  <Icon className="w-3.5 h-3.5 text-gray-400 group-hover:text-green-600 transition-colors" />
+                </div>
+                <span className="text-xs font-medium text-gray-600 group-hover:text-gray-800">
+                  {action.label}
+                </span>
+              </div>
+              <span className="text-[10px] text-gray-400 group-hover:text-green-600 transition-colors">
+                {action.badge}
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
