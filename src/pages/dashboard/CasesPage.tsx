@@ -245,17 +245,42 @@ const CasesPage = () => {
 
     if (!showResolveModal) return;
 
+    const caseToResolve = cases.find((c) => c.id === showResolveModal);
+
     setIsResolving(true);
     setResolveErrors([]);
 
     if (
-      resolvePayload.resolutionType === "penalty_waived" &&
-      (!resolvePayload.penaltyReduction ||
-        Number(resolvePayload.penaltyReduction) <= 0)
+      resolvePayload.resolutionType === "payment_complete" &&
+      caseToResolve &&
+      Number(caseToResolve.totalPaid) < Number(caseToResolve.totalPenalty)
     ) {
-      setResolveErrors(["Penalty reduction must be greater than zero."]);
+      setResolveErrors([
+        "Full payment is required before completing this case.",
+      ]);
       setIsResolving(false);
       return;
+    }
+
+    if (resolvePayload.resolutionType === "penalty_waived") {
+      const penaltyReduction = Number(resolvePayload.penaltyReduction);
+
+      if (!resolvePayload.penaltyReduction || penaltyReduction <= 0) {
+        setResolveErrors(["Penalty reduction must be greater than zero."]);
+        setIsResolving(false);
+        return;
+      }
+
+      if (
+        caseToResolve &&
+        penaltyReduction > Number(caseToResolve.totalPenalty)
+      ) {
+        setResolveErrors([
+          "Penalty reduction cannot exceed the total penalty amount.",
+        ]);
+        setIsResolving(false);
+        return;
+      }
     }
 
     if (
