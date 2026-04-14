@@ -5,6 +5,7 @@ import Overview from "./pages/dashboard/Overview";
 import UsersPage from "./pages/dashboard/UsersPage";
 import CasesPage from "./pages/dashboard/CasesPage";
 import Settings from "./pages/dashboard/Settings";
+import ComplianceSections from "./pages/dashboard/ComplianceSections";
 import RoleGuard from "./components/RoleGuard";
 
 const App = () => {
@@ -25,6 +26,14 @@ const App = () => {
           />
           <Route path="cases" element={<CasesPage />} />
           <Route path="settings" element={<Settings />} />
+          <Route
+            path="compliance-sections"
+            element={
+              <RoleGuard allowedRoles={["super_admin", "enforcement_head"]}>
+                <ComplianceSections />
+              </RoleGuard>
+            }
+          />
         </Route>
       </Routes>
     </Router>
