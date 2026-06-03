@@ -9,8 +9,10 @@ interface Props {
 
 const ProtectedRoute = ({ children }: Props) => {
   const { user } = useContext(AuthContext);
+  const storedUser = localStorage.getItem("user");
+  const storedToken = localStorage.getItem("token");
 
-  if (!user) {
+  if (!user && !storedUser && !storedToken) {
     return <Navigate to="/" />;
   }
 

@@ -1,22 +1,10 @@
-import axios from "axios";
-
-// const API = "http://localhost:4000/api";
-const API = "https://cms-backend-repo.onrender.com/api";
-const CASES_API = `${API}/cases`;
-const COMPLIANCE_API = `${API}/compliance`;
-const SECTIONS_API = `${API}/compliance-sections`;
-
-const getAuthHeader = () => ({
-  headers: {
-    Authorization: `Bearer ${localStorage.getItem("token")}`,
-  },
-});
+import api from "./api";
 
 /* =========================
    GET ALL CASES
 ========================= */
 export const getCases = async () => {
-  const res = await axios.get(CASES_API, getAuthHeader());
+  const res = await api.get("/cases");
   return res.data;
 };
 
@@ -24,7 +12,7 @@ export const getCases = async () => {
    GET SINGLE CASE
 ========================= */
 export const getCaseById = async (id: number) => {
-  const res = await axios.get(`${CASES_API}/${id}`, getAuthHeader());
+  const res = await api.get(`/cases/${id}`);
   return res.data;
 };
 
@@ -32,7 +20,7 @@ export const getCaseById = async (id: number) => {
    CREATE CASE
 ========================= */
 export const createCase = async (data: any) => {
-  const res = await axios.post(CASES_API, data, getAuthHeader());
+  const res = await api.post("/cases", data);
   return res.data;
 };
 
@@ -48,11 +36,7 @@ export type ResolvePayload = {
    RESOLVE CASE
 ========================= */
 export const resolveCase = async (id: number, payload: ResolvePayload) => {
-  const res = await axios.patch(
-    `${CASES_API}/${id}/resolve`,
-    payload,
-    getAuthHeader(),
-  );
+  const res = await api.patch(`/cases/${id}/resolve`, payload);
 
   return res.data;
 };
@@ -61,11 +45,7 @@ export const resolveCase = async (id: number, payload: ResolvePayload) => {
    ADD COMPLIANCE ITEM
 ========================= */
 export const addComplianceItem = async (caseId: number, data: any) => {
-  const res = await axios.post(
-    `${COMPLIANCE_API}/${caseId}`,
-    data,
-    getAuthHeader(),
-  );
+  const res = await api.post(`/compliance/${caseId}`, data);
 
   return res.data;
 };
@@ -74,6 +54,6 @@ export const addComplianceItem = async (caseId: number, data: any) => {
    GET COMPLIANCE SECTIONS
 ========================= */
 export const getComplianceSections = async () => {
-  const res = await axios.get(SECTIONS_API, getAuthHeader());
+  const res = await api.get("/compliance-sections");
   return res.data;
 };

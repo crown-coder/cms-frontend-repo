@@ -9,6 +9,7 @@ import {
   BookOpen,
   ChevronLeft,
   ChevronRight,
+  FileText,
 } from "lucide-react";
 
 const Sidebar = () => {
@@ -48,6 +49,12 @@ const Sidebar = () => {
       icon: BookOpen,
       roles: ["super_admin", "enforcement_head"],
     },
+    {
+      label: "Reports",
+      path: "/dashboard/reports",
+      icon: FileText,
+      roles: ["super_admin", "enforcement_head", "state_controller", "officer"],
+    },
   ];
 
   const filteredNavItems = navItems.filter((item) =>
@@ -56,7 +63,7 @@ const Sidebar = () => {
 
   return (
     <aside
-      className={`relative bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ease-in-out ${
+      className={`relative bg-gradient-to-b from-green-800 to-green-900 flex flex-col transition-all duration-300 ease-in-out ${
         collapsed ? "w-20" : "w-64"
       }`}
     >
@@ -74,49 +81,49 @@ const Sidebar = () => {
 
       {/* Brand */}
       <div
-        className={`px-5 py-6 border-b border-gray-100 ${
+        className={`px-5 py-6 border-b border-green-700/50 ${
           collapsed ? "text-center" : ""
         }`}
       >
         <div
           className={`flex items-center ${collapsed ? "justify-center" : "gap-3"}`}
         >
-          <div className="w-9 h-9 bg-gradient-to-br from-green-600 to-green-700 rounded-lg flex items-center justify-center shadow-sm flex-shrink-0">
-            <span className="text-white font-semibold text-base">CAC</span>
+          <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center shadow-sm flex-shrink-0">
+            <img src="/assets/logo.png" alt="Logo" />
           </div>
           {!collapsed && (
             <div className="min-w-0">
-              <h2 className="text-sm font-semibold text-gray-800 tracking-tight truncate">
+              <h2 className="text-sm font-semibold text-white tracking-tight truncate">
                 Compliance Portal
               </h2>
-              <p className="text-[10px] text-gray-400 mt-0.5 uppercase tracking-wider">
-                v2.4.0
+              <p className="text-[10px] text-green-300 mt-0.5 uppercase tracking-wider">
+                v1.0.0
               </p>
             </div>
           )}
         </div>
       </div>
 
-      {/* User profile - compact */}
+      {/* User profile */}
       <div
-        className={`px-4 py-4 border-b border-gray-100 ${
+        className={`px-4 py-4 border-b border-green-700/50 ${
           collapsed ? "flex justify-center" : ""
         }`}
       >
         <div
           className={`flex items-center ${collapsed ? "justify-center" : "gap-3"}`}
         >
-          <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-            <span className="text-xs font-medium text-gray-600">
+          <div className="w-8 h-8 bg-green-700 rounded-lg flex items-center justify-center flex-shrink-0">
+            <span className="text-xs font-medium text-green-200">
               {user.fullName?.charAt(0) || user.email?.charAt(0)}
             </span>
           </div>
           {!collapsed && (
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-gray-700 truncate">
+              <p className="text-xs font-medium text-white truncate">
                 {user.fullName}
               </p>
-              <p className="text-[10px] text-gray-400 truncate uppercase tracking-wider">
+              <p className="text-[10px] text-green-300 truncate uppercase tracking-wider">
                 {user.role?.replace(/_/g, " ")}
               </p>
             </div>
@@ -141,13 +148,13 @@ const Sidebar = () => {
                     collapsed ? "justify-center" : ""
                   } ${
                     isActive
-                      ? "bg-green-50 text-green-700"
-                      : "text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+                      ? "bg-white text-green-700 shadow-sm"
+                      : "text-green-200 hover:bg-green-700/50 hover:text-white"
                   }`}
                 >
                   <Icon
                     className={`w-5 h-5 flex-shrink-0 ${
-                      isActive ? "text-green-600" : "text-gray-400"
+                      isActive ? "text-green-600" : "text-green-300"
                     }`}
                   />
                   {!collapsed && (
@@ -162,17 +169,17 @@ const Sidebar = () => {
         })}
       </nav>
 
-      {/* Footer - minimal */}
+      {/* Footer */}
       <div
-        className={`px-3 py-4 border-t border-gray-100 ${collapsed ? "text-center" : ""}`}
+        className={`px-3 py-4 border-t border-green-700/50 ${collapsed ? "text-center" : ""}`}
       >
-        <div className="flex items-center gap-2 text-gray-400">
+        <div className="flex items-center gap-2 text-green-300">
           <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-400"></span>
           </span>
           {!collapsed && (
-            <span className="text-[10px] uppercase tracking-wider text-gray-400">
+            <span className="text-[10px] uppercase tracking-wider">
               System online
             </span>
           )}

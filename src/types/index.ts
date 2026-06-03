@@ -10,6 +10,8 @@ export interface User {
   email: string;
   role: Role;
   state?: string | null;
+  twoFactorEnabled?: boolean;
+  assignedStates?: string[];
 }
 
 export interface DashboardSummary {
@@ -24,6 +26,7 @@ export interface DashboardSummary {
     state: string;
     total: number;
   }[];
+  assignedStates?: string[];
 }
 
 export interface Payment {

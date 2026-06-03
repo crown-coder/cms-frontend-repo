@@ -1,20 +1,31 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Login from "./pages/Login";
+import TwoFactorLogin from "./pages/TwoFactorLogin";
 import Layout from "./components/Layout";
 import Overview from "./pages/dashboard/Overview";
 import UsersPage from "./pages/dashboard/UsersPage";
 import CasesPage from "./pages/dashboard/CasesPage";
 import Settings from "./pages/dashboard/Settings";
 import ComplianceSections from "./pages/dashboard/ComplianceSections";
+import Reports from "./pages/dashboard/Reports";
 import RoleGuard from "./components/RoleGuard";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 const App = () => {
   return (
     <Router>
       <Routes>
         <Route path="/" element={<Login />} />
+        <Route path="/2fa" element={<TwoFactorLogin />} />
 
-        <Route path="/dashboard" element={<Layout />}>
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<Overview />} />
           <Route
             path="users"
@@ -34,6 +45,7 @@ const App = () => {
               </RoleGuard>
             }
           />
+          <Route path="reports" element={<Reports />} />
         </Route>
       </Routes>
     </Router>
